@@ -5,12 +5,17 @@ Created on Sat Mar 23 13:20:15 2019
 
 @author: chin-weihuang
 """
+import sys
+sys.path.append("../..")
 
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+import json
 
 from __future__ import print_function
-import numpy as np
-import torch 
-import matplotlib.pyplot as plt
+from assignment.samplers import distribution4, gaussian_1d_density
+from assignment.problem1.mlp import MLP
 
 # plot p0 and p1
 plt.figure()
@@ -37,10 +42,19 @@ plt.plot(xx, N(xx))
  
 
 
+# Load the trained "unk" model for q1.4
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+with open('unk_config.json', 'r') as fp:
+    unk_config = json.load(fp)
+unk = MLP(unk_config, device=device)
+unk.load_model('unk.pt')
 
-
-
-
+# Pass samples through the model and estimate
+# the unknown density using the identity from q5 theoretical
+p = iter(distribution4(0, 512))
+x = next(p)
+f0_x = gaussian_1d_density(x)
+f1_x = unk.estimate_unk(x, f0_x)
 
 
 

@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import math
 
 
 def distribution1(x, batch_size=1):
@@ -19,6 +20,11 @@ def distribution3(batch_size=1):
     while True:
         yield(np.random.normal(0, 1, (batch_size, 2)))
 
+def gaussian_1d(batch_size=1):
+    # One dimensional gaussian distribution (for q1.4)
+    while True:
+        yield(np.random.normal(0, 1, (batch_size, 1)))
+
 e = lambda x: np.exp(x)
 tanh = lambda x: (e(x) - e(-x)) / (e(x)+e(-x))
 def distribution4(batch_size=1):
@@ -27,6 +33,20 @@ def distribution4(batch_size=1):
     while True:
         yield(f(np.random.normal(0, 1, (batch_size, 1))))
 
+
+def get_z(x, y):
+    '''
+    For Q1.2
+    z = ax + (1 - a)y, where a is Uniform[0,1]
+    '''
+    a = random.uniform(0, 1)
+    z = (a * x) + ((1 - a) * y)
+    return z
+
+def gaussian_1d_density(x):
+    # Density function for a 1D standard gaussian (for q1.4)
+    f_x = (1 / math.sqrt(2 * math.pi)) * math.exp(-0.5 * x**2)
+    return f_x
 
 
 if __name__ == '__main__':
