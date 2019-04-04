@@ -8,7 +8,7 @@ sys.path.append('../..')
 
 import torch
 
-from assignment.probelm2.dataloaders import get_binarized_mnist_loaders
+from assignment.problem2.dataloaders import get_binarized_mnist_loaders
 from assignment.problem2.vae import VAE
 from assignment.problem2.eval_methods import elbo_loss
 

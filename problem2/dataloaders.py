@@ -25,12 +25,12 @@ def get_binarized_mnist_loaders(batch_size=512):
 
     # Get the dataloaders
     train = TensorDataset(torch.from_numpy(x_train))
-    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True)#, drop_last=True)
 
     valid = TensorDataset(torch.from_numpy(x_valid))
-    valid_loader = DataLoader(valid, batch_size=batch_size, shuffle=True)
+    valid_loader = DataLoader(valid, batch_size=batch_size, shuffle=True)#, drop_last=True)
 
     test = TensorDataset(torch.from_numpy(x_test))
-    test_loader = DataLoader(test, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test, batch_size=batch_size, shuffle=True)#, drop_last=True)
 
     return train_loader, valid_loader, test_loader

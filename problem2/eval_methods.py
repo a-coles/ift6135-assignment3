@@ -18,7 +18,7 @@ def elbo_loss(x, x_hat, mu, logvar):
     # (see appendix B here for derivation: https://arxiv.org/abs/1312.6114):
     kld = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-    loss = recon_loss(x, x_hat) + kld
+    loss = recon_loss(x.float(), x_hat.float()) + kld
     return loss
 
 
