@@ -19,6 +19,7 @@ def jsd_loss(x, y, grad=None):
     '''
     Objective function for the Jensen-Shannon Divergence
     '''
+    # input x,y defined as D(x) and D(y) in mlp.py
     loss = math.log(2) + (0.5 * torch.log(x).mean()) + (0.5 * torch.log(1 - y).mean())
     # We want to maximize this objective, not minimize it, so we negate it
     loss = -1 * loss
