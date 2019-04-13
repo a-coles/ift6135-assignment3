@@ -9,19 +9,27 @@ sys.path.append("../..")
 import torch
 import torch.nn as nn
 import os
+import random
 
 from torch.autograd import Variable
+from tqdm import tqdm
 
 
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         # Several-layer MLP for now
-        self.fc1 = nn.Linear(100, 64)
-        self.fc2 = nn.Linear(64, 32)
+        self.fc1 = nn.Linear(3072, 128)
+        self.fc2 = nn.Linear(128, 32)
         self.fc3 = nn.Linear(32, 16)
-        self.fc4 = nn.Linear(16, 2)
+        self.fc4 = nn.Linear(16, 1)
         self.relu = nn.ReLU()
+        #self.sigmoid = nn.Sigmoid()
+
+        torch.nn.init.xavier_uniform_(self.fc1.weight)
+        torch.nn.init.xavier_uniform_(self.fc2.weight)
+        torch.nn.init.xavier_uniform_(self.fc3.weight)
+        torch.nn.init.xavier_uniform_(self.fc4.weight)
         # Question: need to take softmax?
 
     def forward(self, inp):
@@ -30,13 +38,14 @@ class Discriminator(nn.Module):
         self.d_inp.retain_grad()
 
         # Forward prop
-        out = self.fc1(self.inp)
+        out = self.fc1(self.d_inp)
         out = self.relu(out)
         out = self.fc2(out)
         out = self.relu(out)
         out = self.fc3(out)
         out = self.relu(out)
         out = self.fc4(out)
+        #out = self.sigmoid(out)
         return out
 
 
@@ -46,32 +55,38 @@ class Generator(nn.Module):
         # Analogous to the decoder in VAE paradigm.
         # The question specifies that the VAE decoder and GAN generator
         # should be the same (architecture and all).
-        self.fc = nn.Linear(in_features=100, out_features=256)
+        # NOTE: be careful changing the numbers here -- we MUST have an output
+        # of [batch_size, 3 (channels), 32, 32] since SVHN is 32x32 and we are trying
+        # to generate fake SVHN data.
+        self.fc = nn.Linear(in_features=100, out_features=16)
         self.elu = nn.ELU()
         self.up = nn.UpsamplingBilinear2d(scale_factor=2)
-        self.deconv1 = nn.Conv2d(in_channels=256, out_channels=64, kernel_size=5, padding=4)
-        self.deconv2 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=3, padding=2)
-        self.deconv3 = nn.Conv2d(in_channels=32, out_channels=16, kernel_size=3, padding=2)
-        self.deconv4 = nn.Conv2d(in_channels=16, out_channels=1, kernel_size=3, padding=2)
+        self.conv1 = nn.Conv2d(in_channels=16, out_channels=3, kernel_size=3, padding=4)
+        self.conv2 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=4, padding=2)
+        self.conv3 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, padding=2)
+        #self.conv4 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=2, padding=2)
 
     def forward(self, inp):
-        print('inp size:', inp.size())
+        #print('In generator.')
+        #print('     Input:', inp.size())
         out = self.fc(inp)
-        print('fc size:', out.size())
+        #print('     fc:', out.size())
         out = self.elu(out)
-        print('elu size:', out.size())
-
-        #out = out.view(-1, 16, 16)
-        #out = out.unsqueeze(1)
-        print('unsqueeze size:', out.size())
-        out = self.deconv1(out)
-        print('conv1 size:', out.size())
+        out = out.unsqueeze(2).unsqueeze(2)
+        #print('     reshape:', out.size())
+        out = self.conv1(out)
+        #print('     conv1:', out.size())
         out = self.up(self.elu(out))
-        out = self.deconv2(out)
+        #print('     up1:', out.size())
+        out = self.conv2(out)
+        #print('     conv2:', out.size())
         out = self.up(self.elu(out))
-        out = self.deconv3(out)
-        out = self.elu(out)
-        out = self.deconv4(out)
+        #print('     up2:', out.size())
+        out = self.conv3(out)
+        #print('     conv3:', out.size())
+        #out = self.elu(out)
+        #out = self.conv4(out)
+        #print('     conv4:', out.size())
         return out
 
 
@@ -138,13 +153,13 @@ class GAN():
         '''
         Wrapper function for training on training set + evaluation on validation set.
         '''
-        d_optimizer = torch.optim.Adam(self.model.parameters(), lr=3e-4)
-        g_optimizer = torch.optim.Adam(self.model.parameters(), lr=3e-4)
+        d_optimizer = torch.optim.SGD(self.model.discriminator.parameters(), lr=3e-4)
+        g_optimizer = torch.optim.Adam(self.model.generator.parameters(), lr=3e-4)
 
         for epoch in range(num_epochs):
             d_train_loss, g_train_loss = self.train_epoch(train_loader,
                                                           loss_fn=loss_fn,
-                                                          d_optimizer=d_optimizer, g_optimizer=g_optimizer,
+                                                          d_optimizer=d_optimizer, g_optimizer=d_optimizer,
                                                           d_update=d_update)
             d_valid_loss, g_valid_loss = self.valid_epoch(valid_loader,
                                                           loss_fn=loss_fn)
@@ -156,16 +171,16 @@ class GAN():
             self.g_valid_losses.append(g_valid_loss)
 
             print('Epoch {}:'.format(epoch))
-            print(' \t d_train_loss: {} \t d_valid_loss: {}'.format(epoch, d_train_loss, d_valid_loss))
-            print(' \t g_train_loss: {} \t g_valid_loss: {}'.format(epoch, g_train_loss, g_valid_loss))
+            print(' \t d_train_loss: {} \t d_valid_loss: {}'.format(d_train_loss, d_valid_loss))
+            print(' \t g_train_loss: {} \t g_valid_loss: {}'.format(g_train_loss, g_valid_loss))
 
-    def train_epoch(self, train_loader, loss_fn=None, d_optimizer=None, g_optimizer=None, d_update=1):
+    def train_epoch(self, train_loader, loss_fn=None, d_optimizer=None, g_optimizer=None, d_update=None):
         '''
         Does training for one epoch.
         '''
         self.model.train()
         d_loss, g_loss = 0.0, 0.0
-        for i, (x, y) in enumerate(train_loader):   # Possibly change this call with dataloader
+        for i, (x, y) in enumerate(tqdm(train_loader)):   # Possibly change this call with dataloader
             real = x.to(self.device)
 
             # Possibly update discriminator several times before updating generator.
@@ -174,19 +189,19 @@ class GAN():
                 # Generate some fake data for the discriminator. Detach so that
                 # we don't calculate gradients for the generator.
                 noise = self.get_noise(real.size(0))
-                fake = self.model.generator(noise).detach()
+                fake = self.model.generator(noise).detach().to(self.device)
 
                 # Train the discriminator.
-                d_err, d_pred_real, d_pred_fake = self.model.train_discriminator(real, fake, d_optimizer=d_optimizer)
-                d_loss += d_err
+                d_err = self.train_discriminator(real, fake, loss_fn=loss_fn, d_optimizer=d_optimizer)
+            d_loss += d_err
 
             # GENERATOR TRAINING
             # Generate some fake data, don't detach this time.
-            noise = Variable(torch.randn(real.size(0), 100))
-            fake = self.model.generator(noise)
+            noise = self.get_noise(real.size(0))
+            fake = self.model.generator(noise).to(self.device)
 
             # Train the generator.
-            g_err = self.model.train_generator(fake, g_optimizer=g_optimizer)
+            g_err = self.train_generator(fake, loss_fn=loss_fn, g_optimizer=g_optimizer)
             g_loss += g_err
 
         return d_loss, g_loss
@@ -196,89 +211,114 @@ class GAN():
         Does evaluation on the validation set for one epoch.
         '''
         self.model.eval()
-        d_loss, g_loss = 0.0
+        d_loss, g_loss = 0.0, 0.0
         for i, (x, y) in enumerate(valid_loader):
-            real = x
+            real = x.to(self.device)
 
-            # Pass through discriminator
-            noise = Variable(torch.randn(real.size(0), 100))
-            fake = self.model.generator(noise).detach()
+            # Generate fake data and pass through discriminator
+            noise = self.get_noise(real.size(0))
+            fake = self.model.generator(noise).detach().to(self.device)
 
-            pred_real = self.model.discriminator(real)
-            target_real = Variable(torch.ones(real.size(0), 1))     # Let real = class 1
-            grad_real = torch.autograd.grad(pred_real.mean(), self.model.d_inp, retain_graph=True)
-            err_real = d_loss(pred_real, target_real, grad=grad_real)
-
-            pred_fake = self.model.discriminator(fake)
-            target_fake = Variable(torch.zeros(fake.size(0), 1))    # Let fake = class 0
-            grad_fake = torch.autograd.grad(pred_fake.mean(), self.model.d_inp, retain_graph=True)
-            err_fake = d_loss(pred_fake, target_fake, grad=grad_fake)
-
+            # Get WGAN-GP loss
+            err_real, ce_real = self.through_discriminator(real, loss_fn, data_type='real')
+            err_fake, ce_fake = self.through_discriminator(fake, loss_fn, data_type='fake')
             d_err = err_real + err_fake
             d_loss += d_err
 
-            bce_loss = nn.BCELoss()     # Track cross-entropy loss too
-            ce = bce_loss(pred_real, target_real) + bce_loss(pred_fake, target_fake)
+            # Get BCE loss
+            ce = ce_real + ce_fake
             self.d_valid_ce.append(ce)
 
             # Pass through generator
-            noise = Variable(torch.randn(real.size(0), 100))
-            fake = self.model.generator(noise)
+            noise = self.get_noise(real.size(0))
+            fake = self.model.generator(noise).detach().to(self.device)
 
+            fake = fake.view(fake.size(0), -1).to(self.device)
             pred = self.model.discriminator(fake)
-            target = Variable(torch.ones(fake.size(0), 1))
-            grad = torch.autograd.grad(pred.mean(), self.model.d_inp, retain_graph=True)
-            g_err = g_loss(pred, target, grad=grad)
+            target = Variable(torch.ones(fake.size(0), 1)).to(self.device)
+            grad = self.get_gpgrad(fake, pred)
+            g_err = loss_fn(pred, target, grad=grad)
             g_loss += g_err
 
         return d_loss, g_loss
 
-    def train_discriminator(self, real, fake, d_loss=None, d_optimizer=None):
+    def get_gpgrad(self, data, pred):
+        '''
+        Gets the gradient needed for the gradient penalty.
+        '''
+        # For gradient penalty, need to sample a t uniformly from [0, 1], get x_hat,
+        # and pass x_hat through the discriminator
+        t = random.uniform(0, 1)
+        x_hat = (t * pred) + ((1 - t) * data)
+        pred_x_hat = self.model.discriminator(x_hat)
+        grad = torch.autograd.grad(pred_x_hat.mean(), self.model.discriminator.d_inp, retain_graph=True)
+        return grad
+
+    def through_discriminator(self, data, loss_fn, data_type='real'):
+        '''
+        Helper function to pass data through discriminator at training.
+        Returns WGAN-GP loss and BCE loss.
+        '''
+        # Note: right now the discriminator is a simple MLP, so we need to flatten our images.
+        data = data.view(data.size(0), -1).to(self.device)
+        pred = self.model.discriminator(data)
+
+        # Let real = class 1 and fake = class 0.
+        if data_type == 'real':
+            target = Variable(torch.ones(data.size(0), 1)).to(self.device)
+        elif data_type == 'fake':
+            target = Variable(torch.zeros(data.size(0), 1)).to(self.device)
+
+        # Get WGAN-GP loss.
+        grad = self.get_gpgrad(data, pred)
+        err = loss_fn(pred, target, grad=grad, objective='max')
+
+        # Also get BCE loss.
+        bce_loss_fn = nn.BCEWithLogitsLoss()
+        ce = bce_loss_fn(pred, target)
+
+        return err, ce
+
+    def train_discriminator(self, real, fake, loss_fn=None, d_optimizer=None):
         '''
         Does a training update to the discriminator.
         '''
         d_optimizer.zero_grad()
 
-        # Train on the real data.
-        pred_real = self.model.discriminator(real)
-        target_real = Variable(torch.ones(real.size(0), 1))     # Let real = class 1
-        grad_real = torch.autograd.grad(pred_real.mean(), self.model.d_inp, retain_graph=True)
-        err_real = d_loss(pred_real, target_real, grad=grad_real)
+        # Train on the real and fake data.
+        err_real, ce_real = self.through_discriminator(real, loss_fn, data_type='real')
         err_real.backward()
-
-        # Train on the fake data.
-        pred_fake = self.model.discriminator(fake)
-        target_fake = Variable(torch.zeros(fake.size(0), 1))    # Let fake = class 0
-        grad_fake = torch.autograd.grad(pred_fake.mean(), self.model.d_inp, retain_graph=True)
-        err_fake = d_loss(pred_fake, target_fake, grad=grad_fake)
+        err_fake, ce_fake = self.through_discriminator(fake, loss_fn, data_type='fake')
         err_fake.backward()
 
         # Update weights.
         d_optimizer.step()
 
         # Update cross-entropy log.
-        bce_loss = nn.BCELoss()
-        ce = bce_loss(pred_real, target_real) + bce_loss(pred_fake, target_fake)
+        ce = ce_real + ce_fake
         self.d_train_ce.append(ce)
 
+        # Return the WGAN-GP error.
         err = err_real + err_fake
-        return err, pred_real, pred_fake
+        return err
 
-    def train_generator(self, fake, g_loss=None, g_optimizer=None):
+    def train_generator(self, fake, loss_fn=None, g_optimizer=None):
         '''
         Does a training update to the generator.
         '''
         g_optimizer.zero_grad()
 
         # Generate fake data.
+        # Note: right now the discriminator is a simple MLP, so we need to flatten our images.
+        fake = fake.view(fake.size(0), -1).to(self.device)
         pred = self.model.discriminator(fake)
         # We want to fool the discriminator -- we hope to generate data that
         # look to be of class 1 (real).
-        target = Variable(torch.ones(fake.size(0), 1))
-        grad = torch.autograd.grad(pred.mean(), self.model.d_inp, retain_graph=True)
+        target = Variable(torch.ones(fake.size(0), 1)).to(self.device)
+        grad = self.get_gpgrad(fake, pred)
 
         # Update.
-        err = g_loss(pred, target, grad=grad)
+        err = loss_fn(pred, target, grad=grad, objective='min')
         err.backward()
         g_optimizer.step()
 
