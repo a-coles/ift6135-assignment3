@@ -15,12 +15,11 @@ from assignment.problem1.mlp import MLP
 from assignment.samplers import distribution2, distribution3
 
 
-def jsd_loss(x, y, grad=None):
+def jsd_loss(Dx, Dy, grad=None):
     '''
     Objective function for the Jensen-Shannon Divergence
     '''
-    # input x,y defined as D(x) and D(y) in mlp.py
-    loss = math.log(2) + (0.5 * torch.log(x).mean()) + (0.5 * torch.log(1 - y).mean())
+    loss = math.log(2) + (0.5 * torch.log(Dx).mean()) + (0.5 * torch.log(1 - Dy).mean())
     # We want to maximize this objective, not minimize it, so we negate it
     loss = -1 * loss
     return loss
@@ -30,7 +29,7 @@ if __name__ == '__main__':
     # Set up data - batch size is fixed at 512
     # Question: which distributions?
     p = iter(distribution2(512))
-    q = iter(distribution3(512))
+    q = iter(distribution2(512))
 
     # Set up MLP
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

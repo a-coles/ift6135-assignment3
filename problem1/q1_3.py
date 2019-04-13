@@ -22,7 +22,7 @@ if __name__ == '__main__':
     theta = np.arange(-1, 1, 0.1)
     q_theta = {}
     for val in theta:
-        q_theta[val] = iter(distribution1(0, 512))
+        q_theta[val] = iter(distribution1(val, 512))
 
     # Load JSD and WD models
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -38,14 +38,18 @@ if __name__ == '__main__':
 
     # Calculate JSD and WD distances over all theta
     jsds, wds = [], []
-    for theta, q in q_theta.items():
+    for _, q in q_theta.items():
         x = next(p)
         y = next(q)
-        jsd_xy = jsd.estimate_jsd(x, y)
+        jsd_xy = jsd.estimate_jsd(x, y).cpu().detach().numpy()
+        print('jsd:', jsd_xy)
         jsds.append(jsd_xy)
-        wd_xy = wd.estimate_wd(x, y)
+        wd_xy = wd.estimate_wd(x, y).cpu().detach().numpy()
         wds.append(wd_xy)
 
     # Save a numpy array for JSD and WD over all theta
+    print('theta:', theta)
+    print('jsds:', len(jsds))
+    print('wds:', len(wds))
     data = np.array([theta, jsds, wds])
     np.save('q1_3.npy', data)

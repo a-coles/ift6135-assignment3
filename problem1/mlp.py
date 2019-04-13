@@ -92,13 +92,13 @@ class MLP():
         This function returns the actual JS divergence estimate.
         '''
         self.model.eval()
-        x = torch.from_numpy(x).float()
-        y = torch.from_numpy(y).float()
+        x = torch.from_numpy(x).float().to(self.device)
+        y = torch.from_numpy(y).float().to(self.device)
 
         Dx = self.model(x)
         Dy = self.model(y)
 
-        jsd = math.log(2) + (0.5 * (torch.log(Dx)).mean()) + (0.5 * (torch.log(1 - Dy)).mean())
+        jsd = math.log(2) + (0.5 * torch.log(Dx).mean()) + (0.5 * torch.log(1 - Dy).mean())
         return jsd
 
     def estimate_wd(self, x, y, lamb=10):
@@ -106,8 +106,8 @@ class MLP():
         This function returns the actual Wasserstein distance estimate.
         '''
         self.model.eval()
-        x = torch.from_numpy(x).float()
-        y = torch.from_numpy(y).float()
+        x = torch.from_numpy(x).float().to(self.device)
+        y = torch.from_numpy(y).float().to(self.device)
 
         Dx = self.model(x)
         Dy = self.model(y)
@@ -116,16 +116,19 @@ class MLP():
         grad = torch.autograd.grad(Dz.mean(), self.model.inp, retain_graph=True)
 
         grad = grad[0]  # Take first item in mysterious tuple
-        grad_penalty = lamb * torch.norm((grad - 1), 2).mean()
+        grad_penalty = lamb * (torch.norm(grad, 2) - 1).pow(2).mean()
         wd = Dx.mean() - Dy.mean() + grad_penalty
         return wd
 
     def estimate_unk(self, x, f0_x):
         '''
         This function returns the density estimate from the unknown distribution (q1.4).
+            f1 = f0 D*(x) / (1 - D*(x))
+            where D*(x) = argmax_D E(log(Dx)) + E(log(1-Dx))
         '''
         self.model.eval()
-        x = torch.from_numpy(x).float()
+        x = torch.from_numpy(x).float().to(self.device)
+        f0_x = torch.from_numpy(f0_x).float().to(self.device)
         Dx = self.model(x)
         f1_x = f0_x * (Dx / (1 - Dx))
         return f1_x

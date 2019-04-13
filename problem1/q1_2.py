@@ -14,13 +14,13 @@ from assignment.problem1.mlp import MLP
 from assignment.samplers import distribution2, distribution3
 
 
-def wd_loss(x, y, grad=None, lamb=10):
+def wd_loss(Dx, Dy, grad=None, lamb=10):
     '''
     Objective function for the Wasserstein Distance.
     '''
     grad = grad[0]  # Take first item in mysterious tuple
-    grad_penalty = lamb * torch.norm((grad - 1), 2).mean()
-    loss = x.mean() - y.mean() + grad_penalty
+    grad_penalty = lamb * (torch.norm(grad, 2) - 1).pow(2).mean()
+    loss = Dx.mean() - Dy.mean() - grad_penalty
     # We want to maximize this objective, not minimize it, so we negate it
     loss = -1 * loss
     return loss
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     # Set up data - batch size is fixed at 512
     # Question: which distributions?
     p = iter(distribution2(512))
-    q = iter(distribution3(512))
+    q = iter(distribution2(512))
 
     # Set up MLP
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
