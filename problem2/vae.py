@@ -55,6 +55,7 @@ class Decoder(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=8, out_channels=4, kernel_size=3, padding=2)
         self.conv3 = nn.Conv2d(in_channels=4, out_channels=2, kernel_size=3, padding=2)
         self.conv4 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=3, padding=2)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, inp):
         out = self.fc(inp)
@@ -67,6 +68,7 @@ class Decoder(nn.Module):
         out = self.conv3(out)
         out = self.elu(out)
         out = self.conv4(out)
+        out = self.sigmoid(out)
         return out
 
 
@@ -83,10 +85,10 @@ class VAEArch(nn.Module):
 
         # Reparamaterize and sample from the distribution
         stdev = torch.exp(0.5 * logvar)
-        sample = torch.rand_like(stdev) + mu
+        sample = stdev * torch.randn_like(stdev) + mu
 
         # Decode the sample
-        out = self.decoder(sample).detach()
+        out = self.decoder(sample)#.detach()
         out = out.squeeze(1).view(-1, 28 * 28)    # Re-flatten for loss calc
         return out, mu, logvar
 
@@ -135,7 +137,7 @@ class VAE():
             self.train_losses.append(train_loss)
             self.valid_losses.append(valid_loss)
 
-            print('Epoch {}: \t train_loss: {} \t valid_loss: {}'.format(epoch, train_loss, valid_loss))
+            print('Epoch {}: \t train_loss: {} \t valid_loss: {}'.format(epoch, train_loss/128, valid_loss/128))
 
     def train_epoch(self, train_loader, loss_fn=None, optimizer=None):
         '''
