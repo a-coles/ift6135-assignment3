@@ -5,6 +5,8 @@ Created on Sat Mar 23 13:20:15 2019
 
 @author: chin-weihuang
 """
+
+from __future__ import print_function
 import sys
 sys.path.append("../..")
 
@@ -13,8 +15,7 @@ import torch
 import matplotlib.pyplot as plt
 import json
 
-from __future__ import print_function
-from assignment.samplers import distribution4, gaussian_1d_density
+from assignment.samplers import distribution4, gaussian_1d, gaussian_1d_density
 from assignment.problem1.mlp import MLP
 
 # plot p0 and p1
@@ -50,19 +51,15 @@ unk = MLP(unk_config, device=device)
 unk.load_model('unk.pt')
 
 # Pass samples through the model and estimate
-# the unknown density using the identity from q5 theoretical
-p = iter(distribution4(0, 512))
-x = next(p)
+# the unknown density using the identity from q5 theoretical:
+# 	f1 = f0 D*(x) / (1 - D*(x))
+# 	where D*(x) = argmax_D E(log(Dx)) + E(log(1-Dx))
+p0 = iter(gaussian_1d(512))
+p1 = iter(distribution4(512))
+x = next(p1)	# Samples from unknown distribution
+y = next(p0)	# Samples from known Gaussian distribution
 f0_x = gaussian_1d_density(x)
 f1_x = unk.estimate_unk(x, f0_x)
-
-
-
-
-
-
-
-
 
 
 ############### plotting things
@@ -70,20 +67,25 @@ f1_x = unk.estimate_unk(x, f0_x)
 ############### (2) plot the estimated density contrasted with the true density
 
 
-
-r = xx # evaluate xx using your discriminator; replace xx with the output
-plt.figure(figsize=(8,4))
+xx = xx.reshape(1000, 1)
+xx = torch.from_numpy(xx).float().to(device)
+r = unk.model(xx) # evaluate xx using your discriminator; replace xx with the output
+xx = xx.cpu().numpy()
+r = r.cpu().detach().numpy()
+#plt.figure(figsize=(8,4))
 plt.subplot(1,2,1)
 plt.plot(xx,r)
 plt.title(r'$D(x)$')
 
-estimate = np.ones_like(xx)*0.2 # estimate the density of distribution4 (on xx) using the discriminator; 
+estimate = unk.estimate_unk(xx, gaussian_1d_density(xx)).cpu().detach().numpy()
+#estimate = np.ones_like(xx)*0.2 # estimate the density of distribution4 (on xx) using the discriminator; 
                                 # replace "np.ones_like(xx)*0." with your estimate
 plt.subplot(1,2,2)
 plt.plot(xx,estimate)
 plt.plot(f(torch.from_numpy(xx)).numpy(), d(torch.from_numpy(xx)).numpy()**(-1)*N(xx))
 plt.legend(['Estimated','True'])
 plt.title('Estimated vs True')
+plt.savefig('q1_4_estimated_density.png')
 
 
 

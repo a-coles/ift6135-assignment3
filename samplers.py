@@ -31,7 +31,7 @@ def distribution4(batch_size=1):
     # arbitrary sampler
     f = lambda x: tanh(x*2+1) + x*0.75
     while True:
-    yield(f(np.random.normal(0, 1, (batch_size, 1))))
+        yield(f(np.random.normal(0, 1, (batch_size, 1))))
 
 
 def get_z(x, y):
@@ -43,9 +43,10 @@ def get_z(x, y):
     z = (a * x) + ((1 - a) * y)
     return z
 
+
 def gaussian_1d_density(x):
     # Density function for a 1D standard gaussian (for q1.4)
-    f_x = (1 / math.sqrt(2 * math.pi)) * math.exp(-0.5 * x**2)
+    f_x = (1 / math.sqrt(2 * math.pi)) * np.exp(-0.5 * x**2)
     return f_x
 
 
