@@ -16,9 +16,9 @@ def wgan_gp(Dx, DGy, grad=None, lamb=10, objective='max'):
     https://arxiv.org/pdf/1704.00028.pdf
     '''
     grad = grad[0]  # Take first item in mysterious tuple
-    #grad_penalty = lamb * torch.norm((grad - 1), 2).pow(2).mean()
+    grad_penalty = lamb * (torch.norm(grad, 2) - 1).pow(2).mean()
     #print('grad penalty:', grad_penalty)
-    loss = DGy.mean() - Dx.mean()# + grad_penalty
+    loss = DGy.mean() - Dx.mean() + grad_penalty
     if objective == 'max':
         # The discriminator should maximize this, while the
         # generator should minimize it
@@ -29,7 +29,7 @@ def wgan_gp(Dx, DGy, grad=None, lamb=10, objective='max'):
 if __name__ == '__main__':
     # Get the dataloaders for SVHN
     print('Getting dataloaders...')
-    train_loader, valid_loader, test_loader = get_loaders(batch_size=128)
+    train_loader, valid_loader, test_loader = get_loaders(batch_size=8)
 
     # Instantiate and train GAN
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

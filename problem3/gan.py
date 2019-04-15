@@ -19,12 +19,12 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         # Several-layer MLP for now
-        self.fc1 = nn.Linear(3072, 128)
-        self.fc2 = nn.Linear(128, 32)
+        self.fc1 = nn.Linear(3072, 64)
+        self.fc2 = nn.Linear(64, 32)
         self.fc3 = nn.Linear(32, 16)
         self.fc4 = nn.Linear(16, 1)
         self.relu = nn.ReLU()
-        #self.sigmoid = nn.Sigmoid()
+        self.sigmoid = nn.Sigmoid()
 
         torch.nn.init.xavier_uniform_(self.fc1.weight)
         torch.nn.init.xavier_uniform_(self.fc2.weight)
@@ -45,7 +45,7 @@ class Discriminator(nn.Module):
         out = self.fc3(out)
         out = self.relu(out)
         out = self.fc4(out)
-        #out = self.sigmoid(out)
+        out = self.sigmoid(out)
         return out
 
 
@@ -65,6 +65,7 @@ class Generator(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=4, padding=2)
         self.conv3 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, padding=2)
         #self.conv4 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=2, padding=2)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, inp):
         #print('In generator.')
@@ -87,6 +88,7 @@ class Generator(nn.Module):
         #out = self.elu(out)
         #out = self.conv4(out)
         #print('     conv4:', out.size())
+        out = self.sigmoid(out)
         return out
 
 
@@ -127,7 +129,7 @@ class GAN():
         Logs the learning curve info to a csv.
         '''
         header = 'epoch,d_train_loss,d_valid_loss,g_train_loss,g_valid_loss\n'
-        num_epochs = len(self.train_losses)
+        num_epochs = len(self.d_train_losses)
         with open(os.path.join('log', 'gan_learning_curves.log'), 'w') as fp:
             fp.write(header)
             for e in range(num_epochs):
@@ -149,17 +151,17 @@ class GAN():
     def get_noise(self, batch_size):
         return Variable(torch.randn(batch_size, 100, device=self.device))
 
-    def train(self, train_loader, valid_loader, loss_fn=None, num_epochs=20, d_update=1):
+    def train(self, train_loader, valid_loader, loss_fn=None, num_epochs=30, d_update=1):
         '''
         Wrapper function for training on training set + evaluation on validation set.
         '''
-        d_optimizer = torch.optim.SGD(self.model.discriminator.parameters(), lr=3e-4)
-        g_optimizer = torch.optim.Adam(self.model.generator.parameters(), lr=3e-4)
+        d_optimizer = torch.optim.Adam(self.model.discriminator.parameters(), lr=1e-6)
+        g_optimizer = torch.optim.Adam(self.model.generator.parameters(), lr=1e-2)
 
         for epoch in range(num_epochs):
             d_train_loss, g_train_loss = self.train_epoch(train_loader,
                                                           loss_fn=loss_fn,
-                                                          d_optimizer=d_optimizer, g_optimizer=d_optimizer,
+                                                          d_optimizer=d_optimizer, g_optimizer=g_optimizer,
                                                           d_update=d_update)
             d_valid_loss, g_valid_loss = self.valid_epoch(valid_loader,
                                                           loss_fn=loss_fn)
@@ -192,7 +194,7 @@ class GAN():
                 fake = self.model.generator(noise).detach().to(self.device)
 
                 # Train the discriminator.
-                d_err = self.train_discriminator(real, fake, loss_fn=loss_fn, d_optimizer=d_optimizer)
+                d_err, ce = self.train_discriminator(real, fake, loss_fn=loss_fn, d_optimizer=d_optimizer)
             d_loss += d_err
 
             # GENERATOR TRAINING
@@ -204,6 +206,7 @@ class GAN():
             g_err = self.train_generator(fake, loss_fn=loss_fn, g_optimizer=g_optimizer)
             g_loss += g_err
 
+        self.d_train_ce.append(ce)
         return d_loss, g_loss
 
     def valid_epoch(self, valid_loader, loss_fn=None):
@@ -227,7 +230,6 @@ class GAN():
 
             # Get BCE loss
             ce = ce_real + ce_fake
-            self.d_valid_ce.append(ce)
 
             # Pass through generator
             noise = self.get_noise(real.size(0))
@@ -240,6 +242,7 @@ class GAN():
             g_err = loss_fn(pred, target, grad=grad)
             g_loss += g_err
 
+        self.d_valid_ce.append(ce)
         return d_loss, g_loss
 
     def get_gpgrad(self, data, pred):
@@ -296,11 +299,10 @@ class GAN():
 
         # Update cross-entropy log.
         ce = ce_real + ce_fake
-        self.d_train_ce.append(ce)
 
         # Return the WGAN-GP error.
         err = err_real + err_fake
-        return err
+        return err, ce
 
     def train_generator(self, fake, loss_fn=None, g_optimizer=None):
         '''
