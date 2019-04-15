@@ -20,8 +20,9 @@ class MLP3Layer(nn.Module):
         self.fc1 = nn.Linear(input_size, hidden_size1)
         self.fc2 = nn.Linear(hidden_size1, hidden_size2)
         self.fc3 = nn.Linear(hidden_size2, hidden_size3)
-        self.fc4 = nn.Linear(hidden_size3, num_classes)
+        self.output = nn.Linear(hidden_size2, num_classes)
         self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, inp):
         # Keep gradient at this point for WD gradient penalty
@@ -35,7 +36,8 @@ class MLP3Layer(nn.Module):
         out = self.relu(out)
         out = self.fc3(out)
         out = self.relu(out)
-        out = self.fc4(out)
+        out = self.output(out)
+        out = self.sigmoid(out)
         return out
 
 
@@ -55,7 +57,7 @@ class MLP():
     def save_model(self, save_path):
         torch.save(self.model.state_dict(), save_path)
 
-    def train(self, p, q, loss_fn=None, lr=1e-3, num_epochs=50, dist_type='jsd'):
+    def train(self, p, q, loss_fn=None, lr=1e-3, num_epochs=10, dist_type='jsd'):
         '''
         This function trains to get D_theta or T_theta in the Latex.
         '''
@@ -98,7 +100,9 @@ class MLP():
         Dx = self.model(x)
         Dy = self.model(y)
 
-        jsd = math.log(2) + (0.5 * torch.log(Dx).mean()) + (0.5 * torch.log(1 - Dy).mean())
+        Ex = 0.5 * torch.log(Dx).mean()
+        Ey = 0.5 * torch.log(1 - Dy).mean()
+        jsd = math.log(2) + Ex + Ey
         return jsd
 
     def estimate_wd(self, x, y, lamb=10):

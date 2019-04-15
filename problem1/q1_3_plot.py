@@ -10,9 +10,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot(theta, jsds, wds):
-    plt.plot(theta, jsds, label='JSD')
-    #plt.plot(theta, wds, label='WD')
+def plot(phi, jsds, wds):
+    plt.plot(phi, jsds, label='JSD')
+    #plt.plot(phi, wds, label='WD')
     plt.title('Jensen-Shannon Divergence vs Wasserstein Distance')
     plt.xlabel('phi')
     plt.ylabel('Distance between distributions')
@@ -24,10 +24,10 @@ def plot(theta, jsds, wds):
 if __name__ == '__main__':
     # Open the numpy array
     data = np.load('q1_3.npy')
-    theta, jsds, wds = data[0], data[1], data[2]
-    print('theta:', theta)
+    phi, jsds, wds = data[0], data[1], data[2]
+    print('phi:', phi)
     print('jsds:', jsds)
     print('wds:', len(wds))
 
     # Plot
-    plot(theta, jsds, wds)
+    plot(phi, jsds, wds)

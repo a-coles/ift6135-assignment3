@@ -12,19 +12,54 @@ import torch
 
 from assignment.samplers import distribution1
 from assignment.problem1.mlp import MLP
+from assignment.problem1.loss_functions import jsd_loss, wd_loss
 
 
 if __name__ == '__main__':
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     # Let p be the distribution of (0, Z)
     p = iter(distribution1(0, 512))
 
-    # Let q_theta be the distribution of (theta, Z)
-    theta = np.arange(-1, 1, 0.1)
+    # Let q_theta be the distribution of (phi, Z)
+    phi = np.linspace(-1, 1, 21)
     q_theta = {}
-    for val in theta:
+    for val in phi:
         q_theta[val] = iter(distribution1(val, 512))
 
-    # Load JSD and WD models
+    # Now we need to train discriminators between the fixed p and
+    # all 21 of the q's.
+    jsds, wds = [], []
+    with open('jsd_config.json', 'r') as fp:
+        jsd_config = json.load(fp)
+    with open('wd_config.json', 'r') as fp:
+        wd_config = json.load(fp)
+
+    for ph, q in q_theta.items():
+        print('PHI:', ph)
+
+        # Train discriminators
+        print('Training JSD...')
+        jsd = MLP(jsd_config, device=device)
+        jsd.train(p, q, loss_fn=jsd_loss, dist_type='jsd')
+
+        print('Training WD...')
+        wd = MLP(wd_config, device=device)
+        wd.train(p, q, loss_fn=wd_loss, dist_type='wd')
+
+        # Sample from p and q
+        x = next(p)
+        y = next(q)
+
+        # Call JSD and WD predictions
+        jsd_xy = jsd.estimate_jsd(x, y).cpu().detach().numpy()
+        jsds.append(jsd_xy)
+        wd_xy = wd.estimate_wd(x, y).cpu().detach().numpy()
+        wds.append(wd_xy)
+
+    # Then the WD:
+
+    '''# Load JSD and WD models
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     with open('jsd_config.json', 'r') as fp:
         jsd_config = json.load(fp)
@@ -45,11 +80,13 @@ if __name__ == '__main__':
         print('jsd:', jsd_xy)
         jsds.append(jsd_xy)
         wd_xy = wd.estimate_wd(x, y).cpu().detach().numpy()
-        wds.append(wd_xy)
+        wds.append(wd_xy)'''
 
     # Save a numpy array for JSD and WD over all theta
-    print('theta:', theta)
-    print('jsds:', len(jsds))
-    print('wds:', len(wds))
-    data = np.array([theta, jsds, wds])
+    jsds = np.array(jsds)
+    wds = np.array(wds)
+    print('phi:', phi)
+    print('jsds:', jsds)
+    print('wds:', wds)
+    data = np.array([phi, jsds, wds])
     np.save('q1_3.npy', data)
