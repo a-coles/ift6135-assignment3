@@ -137,7 +137,7 @@ class VAE():
             self.train_losses.append(train_loss)
             self.valid_losses.append(valid_loss)
 
-            print('Epoch {}: \t train_loss: {} \t valid_loss: {}'.format(epoch, train_loss/128, valid_loss/128))
+            print('Epoch {}: \t train_loss: {} \t valid_loss: {}'.format(epoch, train_loss, valid_loss))
 
     def train_epoch(self, train_loader, loss_fn=None, optimizer=None):
         '''
@@ -177,8 +177,11 @@ class VAE():
         Approximates the log-likelihood via importance sampling.
         '''
         self.model.eval()
-        log_likelihood = 0.0
-        for i, x in enumerate(loader):
-            estimate = log_likelihood_estimate()
-            log_likelihood += estimate
-        return log_likelihood
+        #log_likelihood = 0.0
+        #for i, x in enumerate(loader):
+        #    estimate = log_likelihood_estimate(x)
+        #    log_likelihood += estimate
+        estimates = log_likelihood_estimate(loader)
+        estimate = estimates.sum()
+        return estimate
+        #return log_likelihood
