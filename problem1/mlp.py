@@ -24,20 +24,22 @@ class MLP3Layer(nn.Module):
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, inp):
+    def forward(self, inp, dist_type='jsd'):
         # Keep gradient at this point for WD gradient penalty
-        self.inp = Variable(inp, requires_grad=True)
-        self.inp.retain_grad()
+        #self.inp = Variable(inp, requires_grad=True)
+        #self.inp.retain_grad()
 
         # Begin fprop
-        out = self.fc1(self.inp)
+        out = self.fc1(inp)
         out = self.relu(out)
         out = self.fc2(out)
         out = self.relu(out)
         out = self.fc3(out)
         out = self.relu(out)
         out = self.output(out)
-        out = self.sigmoid(out)
+        if dist_type == 'jsd':
+            # WGAN-GP discriminator, importantly, JUST does regression, no squishing
+            out = self.sigmoid(out)
         return out
 
 
@@ -57,11 +59,26 @@ class MLP():
     def save_model(self, save_path):
         torch.save(self.model.state_dict(), save_path)
 
-    def train(self, p, q, loss_fn=None, lr=1e-3, num_epochs=10, dist_type='jsd'):
+    def get_grad(self, x, y):
+        '''
+        Gets the gradient needed for gradient penalty.
+        '''
+        z = get_z(x, y)
+        #z = Variable(z, requires_grad=True)
+        z.requires_grad = True
+        Dz = self.model(z, dist_type='wd')
+        #print('Dz mean:', Dz.mean())
+        #Dz.mean().backward()
+        Dz.backward(torch.ones_like(Dz))
+        grad = z.grad
+        return grad
+
+    def train(self, p, q, loss_fn=None, lr=1e-3, num_epochs=60, dist_type='jsd'):
         '''
         This function trains to get D_theta or T_theta in the Latex.
         '''
         optimizer = torch.optim.SGD(self.model.parameters(), lr=lr)
+        self.loss_fn = loss_fn
         self.model.train()
 
         for epoch in range(num_epochs):
@@ -72,22 +89,29 @@ class MLP():
 
             # Forward pass
             optimizer.zero_grad()
-            Dx = self.model(x)
-            Dy = self.model(y)
+            Dx = self.model(x, dist_type=dist_type)
+            Dy = self.model(y, dist_type=dist_type)
             grad = None
 
             # Account for WD gradient penalty
             if dist_type == 'wd':
-                z = get_z(x, y)
-                Dz = self.model(z)
-                grad = torch.autograd.grad(Dz.mean(), self.model.inp, retain_graph=True)
+                '''z = get_z(x, y)
+                z = Variable(z, requires_grad=True)
+                Dz = self.model(z, dist_type='wd')
+                #grad = torch.autograd.grad(Dz.mean(), self.model.inp, retain_graph=True)
+                Dz[0].backward()
+                grad = z.grad
+                #print('grad:', grad)'''
+                grad = self.get_grad(x, y)
+                optimizer.zero_grad()
 
             # Backward pass
             loss = loss_fn(Dx, Dy, grad=grad)
             loss.backward()
             optimizer.step()
 
-            print('Epoch {}: \t Loss: {}'.format(epoch, loss))
+            if epoch % 100 == 0:
+                print('Epoch {}: \t Loss: {}'.format(epoch, loss))
 
     def estimate_jsd(self, x, y):
         '''
@@ -97,8 +121,8 @@ class MLP():
         x = torch.from_numpy(x).float().to(self.device)
         y = torch.from_numpy(y).float().to(self.device)
 
-        Dx = self.model(x)
-        Dy = self.model(y)
+        Dx = self.model(x, dist_type='jsd')
+        Dy = self.model(y, dist_type='jsd')
 
         Ex = 0.5 * torch.log(Dx).mean()
         Ey = 0.5 * torch.log(1 - Dy).mean()
@@ -113,15 +137,19 @@ class MLP():
         x = torch.from_numpy(x).float().to(self.device)
         y = torch.from_numpy(y).float().to(self.device)
 
-        Dx = self.model(x)
-        Dy = self.model(y)
-        z = get_z(x, y)
-        Dz = self.model(z)
-        grad = torch.autograd.grad(Dz.mean(), self.model.inp, retain_graph=True)
+        Dx = self.model(x, dist_type='wd')
+        Dy = self.model(y, dist_type='wd')
+        '''z = get_z(x, y)
+        Dz = self.model(z, dist_type='wd')
+        grad = torch.autograd.grad(Dz.mean(), self.model.inp, retain_graph=True)'''
+        grad = self.get_grad(x, y)
 
-        grad = grad[0]  # Take first item in mysterious tuple
+        '''grad = grad[0]  # Take first item in mysterious tuple
         grad_penalty = lamb * (torch.norm(grad, 2) - 1).pow(2).mean()
-        wd = Dx.mean() - Dy.mean() + grad_penalty
+        wd = Dx.mean() - Dy.mean() - grad_penalty'''
+        loss = self.loss_fn(Dx, Dy, grad=grad)
+        #wd = -1 * loss  # The loss function flips sign to maximize, so flip it back
+        wd = loss
         return wd
 
     def estimate_unk(self, x, f0_x):

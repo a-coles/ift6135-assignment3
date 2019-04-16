@@ -12,7 +12,8 @@ import matplotlib.pyplot as plt
 
 def plot(phi, jsds, wds):
     plt.plot(phi, jsds, label='JSD')
-    #plt.plot(phi, wds, label='WD')
+    plt.plot(phi, wds, label='WD')
+    plt.yscale('log') 
     plt.title('Jensen-Shannon Divergence vs Wasserstein Distance')
     plt.xlabel('phi')
     plt.ylabel('Distance between distributions')
