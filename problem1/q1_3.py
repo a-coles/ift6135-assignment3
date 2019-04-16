@@ -17,7 +17,7 @@ from assignment.problem1.loss_functions import jsd_loss, wd_loss
 
 
 def plot(phi, jsds, wds):
-    #plt.plot(phi, jsds, label='JSD')
+    plt.plot(phi, jsds, label='JSD')
     plt.plot(phi, wds, label='WD')
     plt.title('Jensen-Shannon Divergence vs Wasserstein Distance')
     plt.xlabel('phi')
@@ -51,21 +51,21 @@ if __name__ == '__main__':
         print('PHI:', ph)
 
         # Train discriminators
-        '''print('Training JSD...')
+        print('Training JSD...')
         jsd = MLP(jsd_config, device=device)
-        jsd.train(p, q, loss_fn=jsd_loss, dist_type='jsd', num_epochs=400)'''
+        jsd.train(p, q, loss_fn=jsd_loss, dist_type='jsd', num_epochs=400)
 
         print('Training WD...')
         wd = MLP(wd_config, device=device)
-        wd.train(p, q, loss_fn=wd_loss, lr=1e-3, dist_type='wd', num_epochs=400)
+        wd.train(p, q, loss_fn=wd_loss, lr=1e-3, dist_type='wd', num_epochs=200)
 
         # Sample from p and q
         x = next(p)
         y = next(q)
 
         # Call JSD and WD predictions
-        #jsd_xy = jsd.estimate_jsd(x, y).cpu().detach().numpy()
-        #jsds.append(jsd_xy)
+        jsd_xy = jsd.estimate_jsd(x, y).cpu().detach().numpy()
+        jsds.append(jsd_xy)
         wd_xy = wd.estimate_wd(x, y).cpu().detach().numpy()
         wds.append(wd_xy)
 

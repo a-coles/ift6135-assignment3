@@ -70,7 +70,12 @@ class MLP():
         #print('Dz mean:', Dz.mean())
         #Dz.mean().backward()
         Dz.backward(torch.ones_like(Dz))
-        grad = z.grad
+        clip = 1
+        grad = z.grad.data.clamp_(-clip, clip)
+        # print("z.grad", z.grad)
+        # grad = torch.nn.utils.clip_grad_norm(z, 1)
+
+        # print("grad clip", grad)
         return grad
 
     def train(self, p, q, loss_fn=None, lr=1e-2, num_epochs=60, dist_type='jsd'):
