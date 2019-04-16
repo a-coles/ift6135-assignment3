@@ -72,7 +72,7 @@ xx = torch.from_numpy(xx).float().to(device)
 r = unk.model(xx) # evaluate xx using your discriminator; replace xx with the output
 xx = xx.cpu().numpy()
 r = r.cpu().detach().numpy()
-#plt.figure(figsize=(8,4))
+plt.figure(figsize=(8,4))
 plt.subplot(1,2,1)
 plt.plot(xx,r)
 plt.title(r'$D(x)$')
@@ -85,6 +85,7 @@ plt.plot(xx,estimate)
 plt.plot(f(torch.from_numpy(xx)).numpy(), d(torch.from_numpy(xx)).numpy()**(-1)*N(xx))
 plt.legend(['Estimated','True'])
 plt.title('Estimated vs True')
+
 plt.savefig('q1_4_estimated_density.png')
 
 

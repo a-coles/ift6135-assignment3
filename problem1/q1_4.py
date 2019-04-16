@@ -22,7 +22,7 @@ def unk_loss(Dx, Dy, grad=None, lamb=10):
     '''
     Objective function the value function in q1.4.
     '''
-    loss = torch.log(Dx).mean() + torch.log(Dy).mean()
+    loss = torch.log(Dx).mean() + torch.log(1 - Dy).mean()
     # We want to maximize this objective, not minimize it, so we negate it
     loss = -1 * loss
     return loss
@@ -41,5 +41,5 @@ if __name__ == '__main__':
     mlp = MLP(config, device=device)
 
     # Train and save
-    mlp.train(p, q, loss_fn=unk_loss, num_epochs=1000)
+    mlp.train(p, q, loss_fn=unk_loss, num_epochs=20000)
     mlp.save_model('unk.pt')
