@@ -10,7 +10,7 @@ from assignment.problem3.gan import GAN
 from assignment.problem3.dataloaders import get_loaders
 
 
-def wgan_gp(Dx, DGy, grad=None, lamb=10, objective='max'):
+def wgan_gp(Dx, DGy, grad=None, lamb=15, objective='max'):
     '''
     Maximize the WGAN objective with gradient penalty
     https://arxiv.org/pdf/1704.00028.pdf
@@ -19,15 +19,16 @@ def wgan_gp(Dx, DGy, grad=None, lamb=10, objective='max'):
         # We are coming from the discriminator.
         grad = grad[0]  # Take first item in mysterious tuple
         grad_penalty = lamb * (torch.norm(grad, 2) - 1).pow(2).mean()
-        print('norm:', torch.norm(grad, 2))
+        #print('norm:', torch.norm(grad, 2))
         #print('grad penalty:', grad_penalty)
-        #print('DGy:', DGy.mean())
+        #print('DGy:', DGy)
+        #print('DGy mean:', DGy.mean())
         #print('Dx:', Dx.mean())
         loss = DGy.mean() - Dx.mean() + grad_penalty
-        loss = -1 * loss
+        #loss = -1 * loss
     elif objective == 'min':
         # We are coming from the generator -- the other terms in the loss don't matter.
-        loss = DGy.mean()
+        loss = -1 * DGy.mean()
     return loss
 
 

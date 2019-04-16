@@ -19,17 +19,17 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         # Several-layer MLP for now
-        self.fc1 = nn.Linear(3072, 128)
-        self.fc2 = nn.Linear(128, 32)
-        self.fc3 = nn.Linear(32, 16)
-        self.fc4 = nn.Linear(16, 1)
+        self.fc1 = nn.Linear(3072, 3)
+        #self.fc2 = nn.Linear(128, 32)
+        #self.fc3 = nn.Linear(32, 16)
+        self.fc4 = nn.Linear(3, 1)
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
-        torch.nn.init.xavier_uniform_(self.fc1.weight)
-        torch.nn.init.xavier_uniform_(self.fc2.weight)
-        torch.nn.init.xavier_uniform_(self.fc3.weight)
-        torch.nn.init.xavier_uniform_(self.fc4.weight)
+        #torch.nn.init.xavier_uniform_(self.fc1.weight)
+        #torch.nn.init.xavier_uniform_(self.fc2.weight)
+        #torch.nn.init.xavier_uniform_(self.fc3.weight)
+        #torch.nn.init.xavier_uniform_(self.fc4.weight)
 
     def forward(self, inp):
         # Save for gradient penalty
@@ -39,10 +39,10 @@ class Discriminator(nn.Module):
         # Forward prop
         out = self.fc1(self.d_inp)
         out = self.relu(out)
-        out = self.fc2(out)
-        out = self.relu(out)
-        out = self.fc3(out)
-        out = self.relu(out)
+        #out = self.fc2(out)
+        #out = self.relu(out)
+        #out = self.fc3(out)
+        #out = self.relu(out)
         out = self.fc4(out)
         #out = self.sigmoid(out)
         return out
@@ -150,12 +150,12 @@ class GAN():
     def get_noise(self, batch_size):
         return Variable(torch.randn(batch_size, 100, device=self.device))
 
-    def train(self, train_loader, valid_loader, loss_fn=None, num_epochs=10, d_update=1):
+    def train(self, train_loader, valid_loader, loss_fn=None, num_epochs=30, d_update=3):
         '''
         Wrapper function for training on training set + evaluation on validation set.
         '''
-        d_optimizer = torch.optim.SGD(self.model.discriminator.parameters(), lr=1e-3)
-        g_optimizer = torch.optim.SGD(self.model.generator.parameters(), lr=1e-3)
+        d_optimizer = torch.optim.SGD(self.model.discriminator.parameters(), lr=1e-5)
+        g_optimizer = torch.optim.SGD(self.model.generator.parameters(), lr=1e-5)
 
         for epoch in range(num_epochs):
             d_train_loss, g_train_loss = self.train_epoch(train_loader,
@@ -259,7 +259,7 @@ class GAN():
         t = random.uniform(0, 1)
         x_hat = (t * fake) + ((1 - t) * real)
         d_x_hat = self.model.discriminator(x_hat)
-        print('d_x_hat:', d_x_hat)
+        #print('d_x_hat:', d_x_hat)
         grad = torch.autograd.grad(d_x_hat.mean(), self.model.discriminator.d_inp, retain_graph=True)
         return grad
 
@@ -277,6 +277,7 @@ class GAN():
         Does a training update to the discriminator.
         '''
         # Set gradients to 0
+        self.model.discriminator.train()
         d_optimizer.zero_grad()
 
         # Train on the real and fake data.
@@ -303,6 +304,7 @@ class GAN():
         Does a training update to the generator.
         '''
         # Set gradients to 0
+        self.model.generator.train()
         g_optimizer.zero_grad()
 
         # Generate fake data.
