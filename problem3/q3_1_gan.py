@@ -15,14 +15,19 @@ def wgan_gp(Dx, DGy, grad=None, lamb=10, objective='max'):
     Maximize the WGAN objective with gradient penalty
     https://arxiv.org/pdf/1704.00028.pdf
     '''
-    grad = grad[0]  # Take first item in mysterious tuple
-    grad_penalty = lamb * (torch.norm(grad, 2) - 1).pow(2).mean()
-    #print('grad penalty:', grad_penalty)
-    loss = DGy.mean() - Dx.mean() + grad_penalty
     if objective == 'max':
-        # The discriminator should maximize this, while the
-        # generator should minimize it
+        # We are coming from the discriminator.
+        grad = grad[0]  # Take first item in mysterious tuple
+        grad_penalty = lamb * (torch.norm(grad, 2) - 1).pow(2).mean()
+        print('norm:', torch.norm(grad, 2))
+        #print('grad penalty:', grad_penalty)
+        #print('DGy:', DGy.mean())
+        #print('Dx:', Dx.mean())
+        loss = DGy.mean() - Dx.mean() + grad_penalty
         loss = -1 * loss
+    elif objective == 'min':
+        # We are coming from the generator -- the other terms in the loss don't matter.
+        loss = DGy.mean()
     return loss
 
 

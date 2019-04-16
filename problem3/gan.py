@@ -19,8 +19,8 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         # Several-layer MLP for now
-        self.fc1 = nn.Linear(3072, 64)
-        self.fc2 = nn.Linear(64, 32)
+        self.fc1 = nn.Linear(3072, 128)
+        self.fc2 = nn.Linear(128, 32)
         self.fc3 = nn.Linear(32, 16)
         self.fc4 = nn.Linear(16, 1)
         self.relu = nn.ReLU()
@@ -30,7 +30,6 @@ class Discriminator(nn.Module):
         torch.nn.init.xavier_uniform_(self.fc2.weight)
         torch.nn.init.xavier_uniform_(self.fc3.weight)
         torch.nn.init.xavier_uniform_(self.fc4.weight)
-        # Question: need to take softmax?
 
     def forward(self, inp):
         # Save for gradient penalty
@@ -45,7 +44,7 @@ class Discriminator(nn.Module):
         out = self.fc3(out)
         out = self.relu(out)
         out = self.fc4(out)
-        out = self.sigmoid(out)
+        #out = self.sigmoid(out)
         return out
 
 
@@ -88,7 +87,7 @@ class Generator(nn.Module):
         #out = self.elu(out)
         #out = self.conv4(out)
         #print('     conv4:', out.size())
-        out = self.sigmoid(out)
+        #out = self.sigmoid(out)
         return out
 
 
@@ -151,12 +150,12 @@ class GAN():
     def get_noise(self, batch_size):
         return Variable(torch.randn(batch_size, 100, device=self.device))
 
-    def train(self, train_loader, valid_loader, loss_fn=None, num_epochs=30, d_update=1):
+    def train(self, train_loader, valid_loader, loss_fn=None, num_epochs=10, d_update=1):
         '''
         Wrapper function for training on training set + evaluation on validation set.
         '''
-        d_optimizer = torch.optim.Adam(self.model.discriminator.parameters(), lr=1e-6)
-        g_optimizer = torch.optim.Adam(self.model.generator.parameters(), lr=1e-2)
+        d_optimizer = torch.optim.SGD(self.model.discriminator.parameters(), lr=1e-3)
+        g_optimizer = torch.optim.SGD(self.model.generator.parameters(), lr=1e-3)
 
         for epoch in range(num_epochs):
             d_train_loss, g_train_loss = self.train_epoch(train_loader,
@@ -184,25 +183,17 @@ class GAN():
         d_loss, g_loss = 0.0, 0.0
         for i, (x, y) in enumerate(tqdm(train_loader)):   # Possibly change this call with dataloader
             real = x.to(self.device)
+            noise = self.get_noise(real.size(0))
+            fake = self.model.generator(noise)
+            fake_detach = self.model.generator(noise).detach().to(self.device)
 
             # Possibly update discriminator several times before updating generator.
             for j in range(d_update):
                 # DISCRIMINATOR TRAINING
-                # Generate some fake data for the discriminator. Detach so that
-                # we don't calculate gradients for the generator.
-                noise = self.get_noise(real.size(0))
-                fake = self.model.generator(noise).detach().to(self.device)
-
-                # Train the discriminator.
-                d_err, ce = self.train_discriminator(real, fake, loss_fn=loss_fn, d_optimizer=d_optimizer)
+                d_err, ce = self.train_discriminator(real, fake_detach, loss_fn=loss_fn, d_optimizer=d_optimizer)
             d_loss += d_err
 
             # GENERATOR TRAINING
-            # Generate some fake data, don't detach this time.
-            noise = self.get_noise(real.size(0))
-            fake = self.model.generator(noise).to(self.device)
-
-            # Train the generator.
             g_err = self.train_generator(fake, loss_fn=loss_fn, g_optimizer=g_optimizer)
             g_loss += g_err
 
@@ -222,106 +213,105 @@ class GAN():
             noise = self.get_noise(real.size(0))
             fake = self.model.generator(noise).detach().to(self.device)
 
-            # Get WGAN-GP loss
+            # Train on the real and fake data.
+            real = real.view(real.size(0), -1).to(self.device)
+            fake = real.view(fake.size(0), -1).to(self.device)
+            d_real = self.model.discriminator(real)
+            d_fake = self.model.discriminator(fake)
+
+            # Get the WGAN-GP error.
+            grad = self.get_gpgrad(real, fake)
+            d_err = loss_fn(d_real, d_fake, grad=grad, objective='max')
+            d_loss += d_err
+
+            # Also get the cross-entropy error.
+            ce = self.discriminator_ce(d_real, d_fake)
+
+            '''# Get WGAN-GP loss
             err_real, ce_real = self.through_discriminator(real, loss_fn, data_type='real')
             err_fake, ce_fake = self.through_discriminator(fake, loss_fn, data_type='fake')
             d_err = err_real + err_fake
             d_loss += d_err
 
             # Get BCE loss
-            ce = ce_real + ce_fake
+            ce = ce_real + ce_fake'''
 
             # Pass through generator
             noise = self.get_noise(real.size(0))
             fake = self.model.generator(noise).detach().to(self.device)
 
             fake = fake.view(fake.size(0), -1).to(self.device)
-            pred = self.model.discriminator(fake)
-            target = Variable(torch.ones(fake.size(0), 1)).to(self.device)
-            grad = self.get_gpgrad(fake, pred)
-            g_err = loss_fn(pred, target, grad=grad)
+            d_fake = self.model.discriminator(fake)
+            #target = Variable(torch.ones(fake.size(0), 1)).to(self.device)
+            grad = self.get_gpgrad(real, fake)
+            g_err = loss_fn(d_real, d_fake, grad=grad)
             g_loss += g_err
 
         self.d_valid_ce.append(ce)
         return d_loss, g_loss
 
-    def get_gpgrad(self, data, pred):
+    def get_gpgrad(self, real, fake):
         '''
         Gets the gradient needed for the gradient penalty.
         '''
         # For gradient penalty, need to sample a t uniformly from [0, 1], get x_hat,
         # and pass x_hat through the discriminator
         t = random.uniform(0, 1)
-        x_hat = (t * pred) + ((1 - t) * data)
-        pred_x_hat = self.model.discriminator(x_hat)
-        grad = torch.autograd.grad(pred_x_hat.mean(), self.model.discriminator.d_inp, retain_graph=True)
+        x_hat = (t * fake) + ((1 - t) * real)
+        d_x_hat = self.model.discriminator(x_hat)
+        print('d_x_hat:', d_x_hat)
+        grad = torch.autograd.grad(d_x_hat.mean(), self.model.discriminator.d_inp, retain_graph=True)
         return grad
 
-    def through_discriminator(self, data, loss_fn, data_type='real'):
-        '''
-        Helper function to pass data through discriminator at training.
-        Returns WGAN-GP loss and BCE loss.
-        '''
-        # Note: right now the discriminator is a simple MLP, so we need to flatten our images.
-        data = data.view(data.size(0), -1).to(self.device)
-        pred = self.model.discriminator(data)
-
+    def discriminator_ce(self, d_real, d_fake):
         # Let real = class 1 and fake = class 0.
-        if data_type == 'real':
-            target = Variable(torch.ones(data.size(0), 1)).to(self.device)
-        elif data_type == 'fake':
-            target = Variable(torch.zeros(data.size(0), 1)).to(self.device)
+        real_target = Variable(torch.ones(d_real.size(0), 1)).to(self.device)
+        fake_target = Variable(torch.zeros(d_fake.size(0), 1)).to(self.device)
 
-        # Get WGAN-GP loss.
-        grad = self.get_gpgrad(data, pred)
-        err = loss_fn(pred, target, grad=grad, objective='max')
-
-        # Also get BCE loss.
         bce_loss_fn = nn.BCEWithLogitsLoss()
-        ce = bce_loss_fn(pred, target)
-
-        return err, ce
+        ce = bce_loss_fn(d_real, real_target) + bce_loss_fn(d_fake, fake_target)
+        return ce
 
     def train_discriminator(self, real, fake, loss_fn=None, d_optimizer=None):
         '''
         Does a training update to the discriminator.
         '''
+        # Set gradients to 0
         d_optimizer.zero_grad()
 
         # Train on the real and fake data.
-        err_real, ce_real = self.through_discriminator(real, loss_fn, data_type='real')
-        err_real.backward()
-        err_fake, ce_fake = self.through_discriminator(fake, loss_fn, data_type='fake')
-        err_fake.backward()
+        real = real.view(real.size(0), -1).to(self.device)
+        fake = fake.view(fake.size(0), -1).to(self.device)
+        d_real = self.model.discriminator(real)
+        d_fake = self.model.discriminator(fake)
+
+        # Get the WGAN-GP error.
+        grad = self.get_gpgrad(real, fake)
+        err = loss_fn(d_real, d_fake, grad=grad, objective='max')
+        err.backward()
+
+        # Also get the cross-entropy error.
+        ce = self.discriminator_ce(d_real, d_fake)
 
         # Update weights.
         d_optimizer.step()
 
-        # Update cross-entropy log.
-        ce = ce_real + ce_fake
-
-        # Return the WGAN-GP error.
-        err = err_real + err_fake
         return err, ce
 
     def train_generator(self, fake, loss_fn=None, g_optimizer=None):
         '''
         Does a training update to the generator.
         '''
+        # Set gradients to 0
         g_optimizer.zero_grad()
 
         # Generate fake data.
         # Note: right now the discriminator is a simple MLP, so we need to flatten our images.
         fake = fake.view(fake.size(0), -1).to(self.device)
-        pred = self.model.discriminator(fake)
-        # We want to fool the discriminator -- we hope to generate data that
-        # look to be of class 1 (real).
-        target = Variable(torch.ones(fake.size(0), 1)).to(self.device)
-        grad = self.get_gpgrad(fake, pred)
+        d_fake = self.model.discriminator(fake)
 
         # Update.
-        err = loss_fn(pred, target, grad=grad, objective='min')
+        err = loss_fn(None, d_fake, objective='min')
         err.backward()
         g_optimizer.step()
-
         return err
