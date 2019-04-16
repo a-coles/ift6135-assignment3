@@ -17,7 +17,7 @@ from assignment.problem1.loss_functions import jsd_loss, wd_loss
 
 
 def plot(phi, jsds, wds):
-    plt.plot(phi, jsds, label='JSD')
+    #plt.plot(phi, jsds, label='JSD')
     plt.plot(phi, wds, label='WD')
     plt.title('Jensen-Shannon Divergence vs Wasserstein Distance')
     plt.xlabel('phi')
@@ -51,48 +51,23 @@ if __name__ == '__main__':
         print('PHI:', ph)
 
         # Train discriminators
-        print('Training JSD...')
+        '''print('Training JSD...')
         jsd = MLP(jsd_config, device=device)
-        jsd.train(p, q, loss_fn=jsd_loss, dist_type='jsd', num_epochs=900)
+        jsd.train(p, q, loss_fn=jsd_loss, dist_type='jsd', num_epochs=400)'''
 
         print('Training WD...')
         wd = MLP(wd_config, device=device)
-        wd.train(p, q, loss_fn=wd_loss, dist_type='wd', num_epochs=900)
+        wd.train(p, q, loss_fn=wd_loss, lr=1e-3, dist_type='wd', num_epochs=400)
 
         # Sample from p and q
         x = next(p)
         y = next(q)
 
         # Call JSD and WD predictions
-        jsd_xy = jsd.estimate_jsd(x, y).cpu().detach().numpy()
-        jsds.append(jsd_xy)
+        #jsd_xy = jsd.estimate_jsd(x, y).cpu().detach().numpy()
+        #jsds.append(jsd_xy)
         wd_xy = wd.estimate_wd(x, y).cpu().detach().numpy()
         wds.append(wd_xy)
-
-    # Then the WD:
-
-    '''# Load JSD and WD models
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    with open('jsd_config.json', 'r') as fp:
-        jsd_config = json.load(fp)
-    jsd = MLP(jsd_config, device=device)
-    jsd.load_model('jsd.pt')
-
-    with open('wd_config.json', 'r') as fp:
-        wd_config = json.load(fp)
-    wd = MLP(wd_config, device=device)
-    wd.load_model('wd.pt')
-
-    # Calculate JSD and WD distances over all theta
-    jsds, wds = [], []
-    for _, q in q_theta.items():
-        x = next(p)
-        y = next(q)
-        jsd_xy = jsd.estimate_jsd(x, y).cpu().detach().numpy()
-        print('jsd:', jsd_xy)
-        jsds.append(jsd_xy)
-        wd_xy = wd.estimate_wd(x, y).cpu().detach().numpy()
-        wds.append(wd_xy)'''
 
     # Save a numpy array for JSD and WD over all theta
     jsds = np.array(jsds)

@@ -73,7 +73,7 @@ class MLP():
         grad = z.grad
         return grad
 
-    def train(self, p, q, loss_fn=None, lr=1e-3, num_epochs=60, dist_type='jsd'):
+    def train(self, p, q, loss_fn=None, lr=1e-2, num_epochs=60, dist_type='jsd'):
         '''
         This function trains to get D_theta or T_theta in the Latex.
         '''
