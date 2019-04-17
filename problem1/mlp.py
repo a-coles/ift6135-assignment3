@@ -64,21 +64,8 @@ class MLP():
         Gets the gradient needed for gradient penalty.
         '''
         z = get_z(x, y)
-        #z = Variable(z, requires_grad=True)
-        #z.requires_grad = True
         Dz = self.model(z, dist_type='wd')
-        #print('Dz mean:', Dz.mean())
-        #Dz.sum().backward()
-        #Dz.backward(torch.ones_like(Dz))
-        #grad = z.grad
         grad = torch.autograd.grad(Dz.sum(), self.model.inp, retain_graph=True, create_graph=True)[0]
-        #clip = 1
-        #grad = z.grad.data.clamp_(-clip, clip)
-        #print("z.grad", z.grad)
-        # print('grad:', grad[0:10])
-        # grad = grad.detach()
-
-        # print("grad clip", grad)
         return grad
 
     def train(self, p, q, loss_fn=None, lr=1e-2, num_epochs=60, dist_type='jsd'):
@@ -105,13 +92,6 @@ class MLP():
 
             # Account for WD gradient penalty
             if dist_type == 'wd':
-                '''z = get_z(x, y)
-                z = Variable(z, requires_grad=True)
-                Dz = self.model(z, dist_type='wd')
-                #grad = torch.autograd.grad(Dz.mean(), self.model.inp, retain_graph=True)
-                Dz[0].backward()
-                grad = z.grad
-                #print('grad:', grad)'''
                 grad = 0
                 grad = self.get_grad(x, y)
                 optimizer.zero_grad()
@@ -150,17 +130,10 @@ class MLP():
 
         Dx = self.model(x, dist_type='wd')
         Dy = self.model(y, dist_type='wd')
-        '''z = get_z(x, y)
-        Dz = self.model(z, dist_type='wd')
-        grad = torch.autograd.grad(Dz.mean(), self.model.inp, retain_graph=True)'''
         grad = self.get_grad(x, y)
 
-        #grad = grad[0]  # Take first item in mysterious tuple
-        #grad_penalty = lamb * (torch.norm(grad, 2) - 1).pow(2).mean()
+        # Don't penalize gradient at test time
         wd = Dx.mean() - Dy.mean()# - grad_penalty
-        #loss = self.loss_fn(Dx, Dy, grad=grad)
-        #wd = -1 * wd  # The loss function flips sign to maximize, so flip it back
-        #wd = loss
         return wd
 
     def estimate_unk(self, x, f0_x):
