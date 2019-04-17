@@ -13,23 +13,24 @@ import random
 
 from torch.autograd import Variable
 from tqdm import tqdm
+from assignment.problem3.memory_management_utils import dump_tensors
 
 
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
         # Several-layer MLP for now
-        self.fc1 = nn.Linear(3072, 3)
-        #self.fc2 = nn.Linear(128, 32)
-        #self.fc3 = nn.Linear(32, 16)
-        self.fc4 = nn.Linear(3, 1)
+        self.fc1 = nn.Linear(3072, 4)
+        #self.fc2 = nn.Linear(32, 16)
+        #self.fc3 = nn.Linear(16, 4)
+        self.fc4 = nn.Linear(4, 1)
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
-        #torch.nn.init.xavier_uniform_(self.fc1.weight)
+        torch.nn.init.xavier_uniform_(self.fc1.weight)
         #torch.nn.init.xavier_uniform_(self.fc2.weight)
         #torch.nn.init.xavier_uniform_(self.fc3.weight)
-        #torch.nn.init.xavier_uniform_(self.fc4.weight)
+        torch.nn.init.xavier_uniform_(self.fc4.weight)
 
     def forward(self, inp):
         # Save for gradient penalty
@@ -60,11 +61,16 @@ class Generator(nn.Module):
         self.fc = nn.Linear(in_features=100, out_features=16)
         self.elu = nn.ELU()
         self.up = nn.UpsamplingBilinear2d(scale_factor=2)
-        self.conv1 = nn.Conv2d(in_channels=16, out_channels=3, kernel_size=3, padding=4)
-        self.conv2 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=4, padding=2)
+        self.conv1 = nn.Conv2d(in_channels=16, out_channels=8, kernel_size=3, padding=4)
+        self.conv2 = nn.Conv2d(in_channels=8, out_channels=3, kernel_size=4, padding=2)
         self.conv3 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, padding=2)
         #self.conv4 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=2, padding=2)
         self.sigmoid = nn.Sigmoid()
+
+        torch.nn.init.xavier_uniform_(self.fc.weight)
+        torch.nn.init.xavier_uniform_(self.conv1.weight)
+        torch.nn.init.xavier_uniform_(self.conv2.weight)
+        torch.nn.init.xavier_uniform_(self.conv3.weight)
 
     def forward(self, inp):
         #print('In generator.')
@@ -150,12 +156,12 @@ class GAN():
     def get_noise(self, batch_size):
         return Variable(torch.randn(batch_size, 100, device=self.device))
 
-    def train(self, train_loader, valid_loader, loss_fn=None, num_epochs=30, d_update=3):
+    def train(self, train_loader, valid_loader, loss_fn=None, num_epochs=5, d_update=1):
         '''
         Wrapper function for training on training set + evaluation on validation set.
         '''
-        d_optimizer = torch.optim.SGD(self.model.discriminator.parameters(), lr=1e-5)
-        g_optimizer = torch.optim.SGD(self.model.generator.parameters(), lr=1e-5)
+        d_optimizer = torch.optim.Adam(self.model.discriminator.parameters(), lr=1e-3)
+        g_optimizer = torch.optim.Adam(self.model.generator.parameters(), lr=1e-3)
 
         for epoch in range(num_epochs):
             d_train_loss, g_train_loss = self.train_epoch(train_loader,
@@ -172,8 +178,14 @@ class GAN():
             self.g_valid_losses.append(g_valid_loss)
 
             print('Epoch {}:'.format(epoch))
+            #print('  \t d_train_loss: {}'.format(d_train_loss))
+            #print('  \t g_train_loss: {}'.format(g_train_loss))
             print(' \t d_train_loss: {} \t d_valid_loss: {}'.format(d_train_loss, d_valid_loss))
             print(' \t g_train_loss: {} \t g_valid_loss: {}'.format(g_train_loss, g_valid_loss))
+
+            self.save_model('gan.pt')
+
+            dump_tensors()
 
     def train_epoch(self, train_loader, loss_fn=None, d_optimizer=None, g_optimizer=None, d_update=None):
         '''
@@ -259,8 +271,7 @@ class GAN():
         t = random.uniform(0, 1)
         x_hat = (t * fake) + ((1 - t) * real)
         d_x_hat = self.model.discriminator(x_hat)
-        #print('d_x_hat:', d_x_hat)
-        grad = torch.autograd.grad(d_x_hat.mean(), self.model.discriminator.d_inp, retain_graph=True)
+        grad = torch.autograd.grad(d_x_hat.mean(), self.model.discriminator.d_inp, retain_graph=True, create_graph=True)[0]
         return grad
 
     def discriminator_ce(self, d_real, d_fake):
@@ -288,8 +299,9 @@ class GAN():
 
         # Get the WGAN-GP error.
         grad = self.get_gpgrad(real, fake)
+        d_optimizer.zero_grad()
         err = loss_fn(d_real, d_fake, grad=grad, objective='max')
-        err.backward()
+        err.backward(retain_graph=False)
 
         # Also get the cross-entropy error.
         ce = self.discriminator_ce(d_real, d_fake)
