@@ -53,11 +53,11 @@ if __name__ == '__main__':
         # Train discriminators
         print('Training JSD...')
         jsd = MLP(jsd_config, device=device)
-        jsd.train(p, q, loss_fn=jsd_loss, dist_type='jsd', num_epochs=400)
+        jsd.train(p, q, loss_fn=jsd_loss, dist_type='jsd', num_epochs=800)
 
         print('Training WD...')
         wd = MLP(wd_config, device=device)
-        wd.train(p, q, loss_fn=wd_loss, lr=1e-3, dist_type='wd', num_epochs=200)
+        wd.train(p, q, loss_fn=wd_loss, lr=2e-3, dist_type='wd', num_epochs=800)
 
         # Sample from p and q
         x = next(p)

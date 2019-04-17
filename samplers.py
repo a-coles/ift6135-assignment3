@@ -39,6 +39,8 @@ def get_z(x, y):
     For Q1.2
     z = ax + (1 - a)y, where a is Uniform[0,1]
     '''
+    #x = x.detach()
+    #y = y.detach()
     a = random.uniform(0, 1)
     z = (a * x) + ((1 - a) * y)
     return z
