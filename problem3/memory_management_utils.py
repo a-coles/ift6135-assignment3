@@ -37,4 +37,4 @@ def dump_tensors(gpu_only=True):
         except Exception as e:
             pass
     print("Total size:", total_size)
-    print(" Memory usage :", print_gpu_memory())
+    # print(" Memory usage :", print_gpu_memory())

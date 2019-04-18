@@ -18,7 +18,7 @@ def wgan_gp(Dx, DGy, grad=None, lamb=30, objective='max'):
     if objective == 'max':
         # We are coming from the discriminator.
         grad_penalty = lamb * (torch.norm(grad, dim=1) - 1).pow(2).mean()
-        print(grad_penalty)
+        # print(grad_penalty)
         #loss = DGy.mean() - Dx.mean() + grad_penalty
         loss = Dx.mean() - DGy.mean() - grad_penalty
         loss = -1 * loss
@@ -36,6 +36,7 @@ if __name__ == '__main__':
 
     # Instantiate and train GAN
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print("device: ", device)
     gan = GAN(device=device)
     print('Training GAN...')
     gan.train(train_loader, valid_loader, loss_fn=wgan_gp)

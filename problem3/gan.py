@@ -156,7 +156,7 @@ class GAN():
     def get_noise(self, batch_size):
         return Variable(torch.randn(batch_size, 100, device=self.device))
 
-    def train(self, train_loader, valid_loader, loss_fn=None, num_epochs=5, d_update=1):
+    def train(self, train_loader, valid_loader, loss_fn=None, num_epochs=50, d_update=1):
         '''
         Wrapper function for training on training set + evaluation on validation set.
         '''
@@ -168,18 +168,21 @@ class GAN():
                                                           loss_fn=loss_fn,
                                                           d_optimizer=d_optimizer, g_optimizer=g_optimizer,
                                                           d_update=d_update)
+            # with torch.no_grad():   
             d_valid_loss, g_valid_loss = self.valid_epoch(valid_loader,
                                                           loss_fn=loss_fn)
 
             # For logging
+            # already floats
+
             self.d_train_losses.append(d_train_loss)
             self.d_valid_losses.append(d_valid_loss)
             self.g_train_losses.append(g_train_loss)
             self.g_valid_losses.append(g_valid_loss)
 
             print('Epoch {}:'.format(epoch))
-            #print('  \t d_train_loss: {}'.format(d_train_loss))
-            #print('  \t g_train_loss: {}'.format(g_train_loss))
+            # print('  \t d_train_loss: {}'.format(d_train_loss))
+            # print('  \t g_train_loss: {}'.format(g_train_loss))
             print(' \t d_train_loss: {} \t d_valid_loss: {}'.format(d_train_loss, d_valid_loss))
             print(' \t g_train_loss: {} \t g_valid_loss: {}'.format(g_train_loss, g_valid_loss))
 
@@ -209,14 +212,15 @@ class GAN():
             g_err = self.train_generator(fake, loss_fn=loss_fn, g_optimizer=g_optimizer)
             g_loss += g_err
 
-        self.d_train_ce.append(ce)
-        return d_loss, g_loss
+        self.d_train_ce.append(ce.item())
+        return d_loss.item(), g_loss.item()
 
     def valid_epoch(self, valid_loader, loss_fn=None):
         '''
         Does evaluation on the validation set for one epoch.
         '''
         self.model.eval()
+        
         d_loss, g_loss = 0.0, 0.0
         for i, (x, y) in enumerate(valid_loader):
             real = x.to(self.device)
@@ -259,8 +263,8 @@ class GAN():
             g_err = loss_fn(d_real, d_fake, grad=grad)
             g_loss += g_err
 
-        self.d_valid_ce.append(ce)
-        return d_loss, g_loss
+        self.d_valid_ce.append(ce.item())
+        return d_loss.item(), g_loss.item()
 
     def get_gpgrad(self, real, fake):
         '''
