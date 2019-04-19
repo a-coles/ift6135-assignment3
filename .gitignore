@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 .idea/
+
 # C extensions
 *.so
 
@@ -57,7 +58,10 @@ coverage.xml
 
 # Django stuff:
 *.log
+<<<<<<< HEAD
 !vae_*.log
+=======
+>>>>>>> fc42e3c33fea62f1a78b8d345b99a9bc90108aaa
 local_settings.py
 db.sqlite3
 
@@ -129,4 +133,9 @@ dmypy.json
 *.pt
 
 # Don't commit datasets
+<<<<<<< HEAD
 problem2/binarized_mnist/
+=======
+problem2/binarized_mnist/
+problem3/SVHN/
+>>>>>>> fc42e3c33fea62f1a78b8d345b99a9bc90108aaa
