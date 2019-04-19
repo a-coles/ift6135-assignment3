@@ -29,13 +29,13 @@ if __name__ == '__main__':
     vae = VAE(batch_size, device=device, model_path='vae.pt')
     # Evaluate valid and test sets on ELBO loss
 
-    # elbo_valid = vae.valid_epoch(valid_loader, loss_fn=elbo_loss)
-    # log_eval('elbo', 'valid', elbo_valid)
-    # print('elbo_valid is' ,elbo_valid)
+    elbo_valid = vae.valid_epoch(valid_loader, loss_fn=elbo_loss)
+    log_eval('elbo', 'valid', elbo_valid)
+    print('elbo_valid is' ,elbo_valid)
 
-    # elbo_test = vae.valid_epoch(test_loader, loss_fn=elbo_loss)
-    # log_eval('elbo', 'test', elbo_test)
-    # print('elbo_test is', elbo_test)
+    elbo_test = vae.valid_epoch(test_loader, loss_fn=elbo_loss)
+    log_eval('elbo', 'test', elbo_test)
+    print('elbo_test is', elbo_test)
 
     # Evaluate valid and test sets on log-likelihood
     loglike_valid = vae.eval_log_likelihood(valid_loader, device, batch_size, loss_fn=elbo_loss)
