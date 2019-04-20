@@ -73,12 +73,9 @@ def extract_features(classifier, data_loader):
 def calculate_fid_score(sample_feature_iterator,
                         testset_feature_iterator):
     """
-    To be implemented by you!
+    estimate mu and sigma of samples and test and calculate d2
     """
-    raise NotImplementedError(
-        "TO BE IMPLEMENTED."
-        "Part of Assignment 3 Quantitative Evaluations"
-    )
+
 
 
 if __name__ == "__main__":

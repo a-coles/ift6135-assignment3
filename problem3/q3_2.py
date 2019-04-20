@@ -22,7 +22,10 @@ def plot_sample(sample, filename):
     sample = np.moveaxis(sample, 0, 2)
     sample = ((sample * 255).astype(np.uint8))
     plt.imshow(sample)
-    path = os.path.join('eval', filename)
+    if nn.name == 'gan':
+        path = os.path.join('eval/gan', filename)
+    if nn.name == 'vae':
+        path = os.path.join('eval/vae', filename)
     plt.savefig(path)
     plt.clf()
 
@@ -39,19 +42,18 @@ def provide_samples(nn, num_samples=6, device='cpu'):
         samples = nn.model.generator(noise)
         samples = samples.detach().cpu().numpy()
 
+
     if nn.name == 'vae':
         noise = Variable(torch.randn(num_samples, 100)).to(device)
         # or model.VAECarc.decoder?
         samples = nn.model.decoder(noise)
         samples = samples.detach().cpu().numpy()
-        print('sample shape is' ,samples.shape)
-        filename = '{}_sample.png'.format(nn.name)
-        plot_sample(samples, filename)
 
-    # for i in range(num_samples):
-    #     sample = samples[i]
-    #     filename = '{}_sample{}.png'.format(nn.name, i)
-    #     plot_sample(sample, filename)
+
+    for i in range(num_samples):
+        sample = samples[i]
+        filename = '{}_sample{}.png'.format(nn.name, i)
+        plot_sample(sample, filename)
 
 
 def disentangle(nn, epsilon=1e-1, device='cpu'):
@@ -83,7 +85,10 @@ def disentangle(nn, epsilon=1e-1, device='cpu'):
         pert_noise = noise
         print(pert_noise.size())
         pert_noise[0][dim] += epsilon
-        pert = nn.model.generator(pert_noise)
+        if nn.name == 'vae':
+            pert = nn.model.decoder(pert_noise)
+        if nn.name == 'gan':
+            pert = nn.model.generator(pert_noise)
         pert = pert.detach().cpu().numpy()
         pert_name = '{}_perturb_{}.png'.format(nn.name, dim)
         plot_sample(pert, pert_name)
