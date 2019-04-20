@@ -13,7 +13,7 @@ import random
 
 from torch.autograd import Variable
 from tqdm import tqdm
-from assignment.problem3.memory_management_utils import dump_tensors
+from memory_management_utils import dump_tensors
 
 
 class Discriminator(nn.Module):
