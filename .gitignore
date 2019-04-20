@@ -1,3 +1,7 @@
+# helios
+*.out
+*.err
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -58,10 +62,8 @@ coverage.xml
 
 # Django stuff:
 *.log
-<<<<<<< HEAD
 !vae_*.log
-=======
->>>>>>> fc42e3c33fea62f1a78b8d345b99a9bc90108aaa
+!gan_*.log
 local_settings.py
 db.sqlite3
 
@@ -133,9 +135,5 @@ dmypy.json
 *.pt
 
 # Don't commit datasets
-<<<<<<< HEAD
-problem2/binarized_mnist/
-=======
 problem2/binarized_mnist/
 problem3/SVHN/
->>>>>>> fc42e3c33fea62f1a78b8d345b99a9bc90108aaa
