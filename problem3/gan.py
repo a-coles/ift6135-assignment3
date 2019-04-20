@@ -123,6 +123,22 @@ class GAN():
         self.g_train_losses, self.g_valid_losses = [], []
         self.d_train_ce, self.d_valid_ce = [], []   # Cross-entropy
 
+    '''def destroyer(self, var):
+        print("in destroyer")
+        try:
+
+            return val
+            print(tensor.type())
+        except:
+            pass
+        #if type(var) is torch:
+        #    print('destroyer true')
+        #    val = var.item()
+        #    del var
+
+        #return val'''
+
+
     def load_model(self, model_path):
         self.model.load_state_dict(torch.load(model_path))
 
@@ -206,14 +222,18 @@ class GAN():
             for j in range(d_update):
                 # DISCRIMINATOR TRAINING
                 d_err, ce = self.train_discriminator(real, fake_detach, loss_fn=loss_fn, d_optimizer=d_optimizer)
+            #self.destroyer(d_err)
+            # print("train_epoch d_err", type(d_err))
+
             d_loss += d_err
+            # print("train_epoch d_loss", type(d_loss))
 
             # GENERATOR TRAINING
             g_err = self.train_generator(fake, loss_fn=loss_fn, g_optimizer=g_optimizer)
             g_loss += g_err
 
-        self.d_train_ce.append(ce.item())
-        return d_loss.item(), g_loss.item()
+        self.d_train_ce.append(ce)
+        return d_loss, g_loss
 
     def valid_epoch(self, valid_loader, loss_fn=None):
         '''
@@ -258,7 +278,7 @@ class GAN():
 
             fake = fake.view(fake.size(0), -1).to(self.device)
             d_fake = self.model.discriminator(fake)
-            #target = Variable(torch.ones(fake.size(0), 1)).to(self.device)
+            # target = Variable(torch.ones(fake.size(0), 1)).to(self.device)
             grad = self.get_gpgrad(real, fake)
             g_err = loss_fn(d_real, d_fake, grad=grad)
             g_loss += g_err
@@ -313,7 +333,7 @@ class GAN():
         # Update weights.
         d_optimizer.step()
 
-        return err, ce
+        return err.item(), ce.item()
 
     def train_generator(self, fake, loss_fn=None, g_optimizer=None):
         '''
@@ -332,4 +352,4 @@ class GAN():
         err = loss_fn(None, d_fake, objective='min')
         err.backward()
         g_optimizer.step()
-        return err
+        return err.item()
