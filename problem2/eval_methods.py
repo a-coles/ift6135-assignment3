@@ -32,6 +32,7 @@ def log_likelihood_estimate(model, loader, device, batch_size, loss_fn):
     k_loss = []
     model.eval()
     # per batch
+
     for i, x in enumerate(loader):
         # per xi
         for j in range(len(x[0])):
@@ -42,10 +43,31 @@ def log_likelihood_estimate(model, loader, device, batch_size, loss_fn):
             xi_m = torch.stack(xi_l)
             xi_m = xi_m.to(device)
             output, mu, logvar = model(xi_m)
-            loss = loss_fn(xi_m, output, batch_size=1, mu=mu, logvar=logvar)
+
+            # generate and sample q
+            stdev = torch.exp(0.5 * logvar)
+            q_gauss = torch.dists.normal(mu, stdev)
+            q_samp = q_gauss.sample(xi_m)
+
+            # generate and sample p(zik)
+            p_gauss = torch.dists.normal(0, 1)
+            p_samp = p_gauss.sample(xi_m)
+
+            DKL = DKL_sample(q_samp, p_samp, k)
+            loss =
+
+
+            # loss = loss_fn(xi_m, output, batch_size=1, mu=mu, logvar=logvar)
             # print('log sum exp loss is',loss)
             k_loss.append(logSumExp(loss))
     return k_loss
+
+
+def DKL_sample(q, p, k):
+    # find a fast way to sum this
+    dkl = -1 * (q * torch.log(q) - q * torch.log(p))
+    # check axis
+    dkl = torch.mean(dkl)
 
 
 def logSumExp(input):
