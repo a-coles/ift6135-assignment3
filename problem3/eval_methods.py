@@ -13,7 +13,8 @@ def elbo_loss(x, x_hat, batch_size, mu, logvar):
     The ELBO loss is the reconstruction loss + the KL divergence,
     summed over the minibatch.
     '''
-    recon_loss = nn.MSELoss(reduction='sum')
+    # recon_loss = nn.MSELoss(reduction='sum')
+    recon_loss = nn.BCELoss(reduction='sum')
     # recon_loss = nn.CrossEntropyLoss(reduction='sum')
     rloss = recon_loss(x_hat.float(), x.float())
     # Note: have we made a supposition that p and q are underlyingly

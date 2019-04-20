@@ -104,11 +104,13 @@ class VAE():
     def __init__(self, batch_size, device='cpu', model_path=None):
         # Set up model
         self.device = device
+        self.name = 'vae'
         self.batch_size = batch_size
         self.model = VAEArch(device=self.device)
         print(torch.cuda.is_available())
         if model_path:
             self.load_model(model_path)
+            print('model loaded')
         self.model = self.model.to(self.device)
 
         # Set up logging variables
