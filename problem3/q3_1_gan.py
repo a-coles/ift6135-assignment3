@@ -32,7 +32,7 @@ def wgan_gp(Dx, DGy, grad=None, lamb=30, objective='max'):
 if __name__ == '__main__':
     # Get the dataloaders for SVHN
     print('Getting dataloaders...')
-    train_loader, valid_loader, test_loader = get_loaders(batch_size=256)
+    train_loader, valid_loader, test_loader = get_loaders(batch_size=64)
 
     # Instantiate and train GAN
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
