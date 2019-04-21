@@ -42,33 +42,43 @@ def log_likelihood_estimate(model, loader, device, batch_size, loss_fn):
             xi_l.extend([xi] * k)
             xi_m = torch.stack(xi_l)
             xi_m = xi_m.to(device)
+            # calc input for loss
             output, mu, logvar = model(xi_m)
-
-            # generate and sample q
             stdev = torch.exp(0.5 * logvar)
-            q_gauss = torch.dists.normal(mu, stdev)
-            q_samp = q_gauss.sample(xi_m)
+            #calco input for q
+            mu_ = mu[0,:]
+            stdev_ = stdev[0,:]
+            # generate and sample q
+            q_gauss = dists.Normal(mu_, stdev_)
+            q_samp = q_gauss.sample_n(k)
 
             # generate and sample p(zik)
-            p_gauss = torch.dists.normal(0, 1)
-            p_samp = p_gauss.sample(xi_m)
-
-            DKL = DKL_sample(q_samp, p_samp, k)
-            loss =
-
-
+            mu_0 = torch.zeros(100)
+            sig_1 = torch.ones(100)
+            p_gauss = dists.Normal(mu_0, sig_1)
+            p_samp = p_gauss.sample_n(k)
+            # send to device
+            q_samp = q_samp.to(device)
+            p_samp = p_samp.to(device)
+            # take sample
+            DKL = DKL_ksample(q_samp, p_samp, k)
+            # calc loss
+            recon_loss = nn.BCELoss(reduction='sum')
+            lo = recon_loss(output.float(), xi_m.float())
+            loss = lo + DKL
             # loss = loss_fn(xi_m, output, batch_size=1, mu=mu, logvar=logvar)
             # print('log sum exp loss is',loss)
             k_loss.append(logSumExp(loss))
     return k_loss
 
 
-def DKL_sample(q, p, k):
+def DKL_ksample(q, p, k):
     # find a fast way to sum this
     dkl = -1 * (q * torch.log(q) - q * torch.log(p))
     # check axis
     dkl = torch.mean(dkl)
-
+    print('dkl shape si',dkl.shape)
+    return dkl
 
 def logSumExp(input):
     inp = input.cpu().detach().numpy()
