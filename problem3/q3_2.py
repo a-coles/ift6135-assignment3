@@ -11,7 +11,7 @@ import torch
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-
+import torchvision
 from gan import GAN
 from vae import VAE
 from torch.autograd import Variable
@@ -22,13 +22,16 @@ def plot_sample(sample, filename):
     sample = np.moveaxis(sample, 0, 2)
     sample = ((sample * 255).astype(np.uint8))
     plt.imshow(sample)
-    if nn.name == 'gan':
-        path = os.path.join('eval/gan', filename)
+    path = os.path.join('eval', filename)
     if nn.name == 'vae':
         path = os.path.join('eval/vae', filename)
     plt.savefig(path)
     plt.clf()
 
+
+    sample = sample.view(3, 32, 32)
+    path = os.path.join('eval', filename)
+    torchvision.utils.save_image(sample, path, normalize=True)
 
 def provide_samples(nn, num_samples=6, device='cpu'):
     '''
