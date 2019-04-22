@@ -1,13 +1,10 @@
 '''
 This file trains a GAN for q3.1.
 '''
-import sys
-sys.path.append('../..')
-
 import torch
 
-from assignment.problem3.gan import GAN
-from assignment.problem3.dataloaders import get_loaders
+from gan import GAN
+from dataloaders import get_loaders
 
 
 def wgan_gp(Dx, DGy, grad=None, lamb=30, objective='max'):

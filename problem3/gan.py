@@ -4,7 +4,6 @@ This file implements an MLP for problem 1 as specified:
 '''
 
 import sys
-sys.path.append("../..")
 
 import torch
 import torch.nn as nn
@@ -13,7 +12,7 @@ import random
 
 from torch.autograd import Variable
 from tqdm import tqdm
-from assignment.problem3.memory_management_utils import dump_tensors
+from memory_management_utils import dump_tensors
 
 
 class Discriminator(nn.Module):
@@ -312,10 +311,10 @@ class GAN():
             # target = Variable(torch.ones(fake.size(0), 1)).to(self.device)
             grad = self.get_gpgrad(real, fake)
             g_err = loss_fn(d_real, d_fake, grad=grad)
-            g_loss += g_err
+            g_loss += g_err.item()
 
         self.d_valid_ce.append(ce.item())
-        return d_loss.item(), g_loss.item()
+        return d_loss, g_loss
 
 
     def get_gpgrad(self, real, fake):
