@@ -36,24 +36,24 @@ class Discriminator(nn.Module):
             # in this setting, since we penalize the norm of the critic's gradient with respect to each input independently and not the enitre batch.
             # There is not good & fast implementation of layer normalization --> using per instance normalization nn.InstanceNorm2d()
             # Image (Cx32x32)
-            nn.Conv2d(in_channels=channels, out_channels=32, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(in_channels=channels, out_channels=4, kernel_size=4, stride=2, padding=1),
             #nn.InstanceNorm2d(256, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             # State (256x16x16)
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(in_channels=4, out_channels=8, kernel_size=4, stride=2, padding=1),
             #nn.InstanceNorm2d(512, affine=True),
             nn.LeakyReLU(0.2, inplace=True),
 
             # State (512x8x8)
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(in_channels=8, out_channels=16, kernel_size=4, stride=2, padding=1),
             #nn.InstanceNorm2d(1024, affine=True),
             nn.LeakyReLU(0.2, inplace=True))
             # output of main module --> State (1024x4x4)
 
         self.output = nn.Sequential(
             # The output of D is no longer a probability, we do not apply sigmoid at the output of D.
-            nn.Conv2d(in_channels=128, out_channels=1, kernel_size=4, stride=1, padding=0))
+            nn.Conv2d(in_channels=16, out_channels=1, kernel_size=4, stride=1, padding=0))
 
     def forward(self, inp):
         '''
@@ -108,22 +108,22 @@ class Generator(nn.Module):
 
         self.main_module = nn.Sequential(
             # Z latent vector 100
-            nn.ConvTranspose2d(in_channels=100, out_channels=128, kernel_size=4, stride=1, padding=0),
-            nn.BatchNorm2d(num_features=128),
+            nn.ConvTranspose2d(in_channels=100, out_channels=16, kernel_size=4, stride=1, padding=0),
+            nn.BatchNorm2d(num_features=16),
             nn.ReLU(True),
 
             # State (1024x4x4)
-            nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(num_features=64),
+            nn.ConvTranspose2d(in_channels=16, out_channels=8, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(num_features=8),
             nn.ReLU(True),
 
             # State (512x8x8)
-            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(num_features=32),
+            nn.ConvTranspose2d(in_channels=8, out_channels=4, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(num_features=4),
             nn.ReLU(True),
 
             # State (256x16x16)
-            nn.ConvTranspose2d(in_channels=32, out_channels=channels, kernel_size=4, stride=2, padding=1))
+            nn.ConvTranspose2d(in_channels=4, out_channels=channels, kernel_size=4, stride=2, padding=1))
             # output of main module --> Image (Cx32x32)
 
         self.output = nn.Tanh()
@@ -223,10 +223,10 @@ class GAN():
         for epoch in range(num_epochs):
             d_train_loss, g_train_loss = self.train_epoch(train_loader,
                                                           loss_fn=loss_fn,
-                                                          d_optimizer=d_optimizer, 
+                                                          d_optimizer=d_optimizer,
                                                           g_optimizer=g_optimizer,
                                                           d_update=d_update)
-            # with torch.no_grad():   
+
             d_valid_loss, g_valid_loss = self.valid_epoch(valid_loader,
                                                           loss_fn=loss_fn)
 
@@ -239,8 +239,6 @@ class GAN():
             self.g_valid_losses.append(g_valid_loss)
 
             print('Epoch {}:'.format(epoch))
-            # print('  \t d_train_loss: {}'.format(d_train_loss))
-            # print('  \t g_train_loss: {}'.format(g_train_loss))
             print(' \t d_train_loss: {} \t d_valid_loss: {}'.format(d_train_loss, d_valid_loss))
             print(' \t g_train_loss: {} \t g_valid_loss: {}'.format(g_train_loss, g_valid_loss))
 
@@ -252,7 +250,7 @@ class GAN():
         '''
         self.model.train()
         d_loss, g_loss = 0.0, 0.0
-        for i, (x, y) in enumerate(tqdm(train_loader)):   # Possibly change this call with dataloader
+        for i, (x, y) in enumerate(tqdm(train_loader)):
             real = x.to(self.device)
             noise = self.get_noise(real.size(0))
             fake = self.model.generator(noise)
@@ -262,10 +260,7 @@ class GAN():
             for j in range(d_update):
                 # DISCRIMINATOR TRAINING
                 d_err, ce = self.train_discriminator(real, fake_detach, loss_fn=loss_fn, d_optimizer=d_optimizer)
-            # print("train_epoch d_err", type(d_err))
-
             d_loss += d_err
-            # print("train_epoch d_loss", type(d_loss))
 
             # GENERATOR TRAINING
             g_err = self.train_generator(fake, loss_fn=loss_fn, g_optimizer=g_optimizer)
@@ -354,21 +349,6 @@ class GAN():
         d_real = self.model.discriminator(real)
         d_fake = self.model.discriminator(fake)
 
-        # copy and paste the whole func def to avid deep copy problems
-        
-        t = random.uniform(0, 1)
-        x_hat = (t * fake.data) + ((1 - t) * real.data)
-        x_hat.requires_grad = True
-        d_x_hat = self.model.discriminator(x_hat)
-        grad = torch.autograd.grad(d_x_hat.mean(), x_hat, retain_graph=True, create_graph=True)[0]
-        # print('grad', grad)
-        #        grad_fn=<CudnnConvolutionBackwardBackward>
-        '''(-d_real).mean().backward(retain_graph=True)
-        d_fake.mean().backward(retain_graph=True)
-        lamb = 20
-        grad_penalty = lamb * (torch.norm(grad, dim=1) - 1).pow(2).mean()
-        # print("grad_penalty", grad_penalty)
-        grad_penalty.backward(retain_graph=True)'''
         
         # Get the WGAN-GP error.
         grad = self.get_gpgrad(real, fake)
@@ -376,7 +356,7 @@ class GAN():
         err = loss_fn(d_real, d_fake, grad=grad, objective='max')
         err.backward(retain_graph=False)
 
- 
+        # Also get cross-entropy error. 
         ce = self.discriminator_ce(d_real, d_fake)
 
         # Update weights.
