@@ -46,36 +46,6 @@ class Encoder(nn.Module):
         return mu, logvar
 
 
-# class Decoder(nn.Module):
-#     def __init__(self, device='cpu'):
-#         super(Decoder, self).__init__()
-#         # self.device = device
-#         self.fc = nn.Linear(in_features=100, out_features=16)
-#         self.elu = nn.ELU()
-#         self.up = nn.UpsamplingBilinear2d(scale_factor=2)
-#         self.conv1 = nn.Conv2d(in_channels=16, out_channels=8, kernel_size=3, padding=4)
-#         self.conv2 = nn.Conv2d(in_channels=8, out_channels=3, kernel_size=4, padding=2)
-#         self.conv3 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, padding=2)
-#         # self.conv4 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=2, padding=2)
-#         self.sigmoid = nn.Sigmoid()
-#
-#         torch.nn.init.xavier_uniform_(self.fc.weight)
-#         torch.nn.init.xavier_uniform_(self.conv1.weight)
-#         torch.nn.init.xavier_uniform_(self.conv2.weight)
-#         torch.nn.init.xavier_uniform_(self.conv3.weight)
-#
-#     def forward(self, inp):
-#         out = self.fc(inp)
-#         out = self.elu(out)
-#         out = out.unsqueeze(2).unsqueeze(2)
-#         out = self.conv1(out)
-#         out = self.up(self.elu(out))
-#         out = self.conv2(out)
-#         out = self.up(self.elu(out))
-#         out = self.conv3(out)
-#         out = self.sigmoid(out)
-#         return out
-
 class Decoder(nn.Module):
     def __init__(self, device='cpu'):
         super(Decoder, self).__init__()
@@ -95,14 +65,12 @@ class Decoder(nn.Module):
         self.sig = nn.Sigmoid()
 
     def forward(self, inp):
-        print('inp shape is',inp.shape)
         out = inp.unsqueeze(2).unsqueeze(2)
-        print('shape of inp is', out.shape)
         out = self.conv1(out)
         out = self.BN1(out)
         out = self.relu(out)
         # out = out.unsqueeze(2).unsqueeze(2)
-        out = self.conv2(inp)
+        out = self.conv2(out)
         out = self.BN2(out)
         out = self.relu(out)
         out = self.conv3(out)
@@ -169,7 +137,7 @@ class VAE():
             for e in range(num_epochs):
                 fp.write('{},{},{}\n'.format(e, self.train_losses[e], self.valid_losses[e]))
 
-    def train(self, train_loader, valid_loader, loss_fn=None, lr=1e-3, num_epochs=20):
+    def train(self, train_loader, valid_loader, loss_fn=None, lr=1e-3, num_epochs=45):
         '''
         Wrapper function for training on training set + evaluation on validation set.
         '''
