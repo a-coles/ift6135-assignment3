@@ -14,7 +14,7 @@ from eval_methods import elbo_loss
 if __name__ == '__main__':
     # Get the dataloaders for SVHN
     print('Getting dataloaders...')
-    batch_size = 32
+    batch_size = 64
     train_loader, valid_loader, test_loader = get_loaders(batch_size)
     # Instantiate and train model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
