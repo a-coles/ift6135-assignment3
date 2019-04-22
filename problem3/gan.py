@@ -368,7 +368,7 @@ class GAN():
         lamb = 20
         grad_penalty = lamb * (torch.norm(grad, dim=1) - 1).pow(2).mean()
         # print("grad_penalty", grad_penalty)
-        grad_penalty.backward(retain_graph=True)
+        grad_penalty.backward()
         
         # Get the WGAN-GP error.
         # grad = self.get_gpgrad(real, fake)
