@@ -18,7 +18,7 @@ from torch.autograd import Variable
 
 
 def plot_sample(sample, filename):
-    sample = sample.reshape(3, 32, 32)
+    '''sample = sample.reshape(3, 32, 32)
     sample = np.moveaxis(sample, 0, 2)
     sample = ((sample * 255).astype(np.uint8))
     plt.imshow(sample)
@@ -26,12 +26,13 @@ def plot_sample(sample, filename):
     if nn.name == 'vae':
         path = os.path.join('eval/vae', filename)
     plt.savefig(path)
-    plt.clf()
-
+    plt.clf()'''
 
     sample = sample.view(3, 32, 32)
     path = os.path.join('eval', filename)
     torchvision.utils.save_image(sample, path, normalize=True)
+
+
 
 def provide_samples(nn, num_samples=6, device='cpu'):
     '''
@@ -41,9 +42,15 @@ def provide_samples(nn, num_samples=6, device='cpu'):
     if nn.name == 'gan':
         # Note: first argument is batch size of trained model,
         # second argument is size of latent space (don't change that!)
-        noise = Variable(torch.randn(num_samples, 100)).to(device)
+        #noise = Variable(torch.randn(num_samples, 100)).to(device)
+        noise = Variable(torch.randn(num_samples, 100, 1, 1)).to(device)
         samples = nn.model.generator(noise)
-        samples = samples.detach().cpu().numpy()
+        # samples = samples.detach().cpu().numpy()
+        print('sample shape is' ,samples.shape)
+        for i in range(num_samples):
+            sample = samples[i]
+            filename = '{}_sample{}.png'.format(nn.name, i)
+            plot_sample(sample, filename)
 
 
     if nn.name == 'vae':
@@ -66,7 +73,8 @@ def disentangle(nn, epsilon=1e-1, device='cpu'):
     NOTE: Is this the right idea for "sample from the prior"?
     '''
     if nn.name == 'gan':
-        noise = Variable(torch.randn(1, 100)).to(device)
+        #noise = Variable(torch.randn(1, 100)).to(device)
+        noise = Variable(torch.randn(1, 100, 1, 1)).to(device)
         # Just take one sample
         non_perturbed = nn.model.generator(noise)
         non_perturbed = non_perturbed.detach().cpu().numpy()
@@ -152,6 +160,8 @@ def interpolate2(nn, device='cpu'):
 
 
 if __name__ == '__main__':
+    print('Plotting qualitatively...')
+
     # Parse arguments
     parser = argparse.ArgumentParser(description='Do qualitative evaluation of a trained model.')
     parser.add_argument('model_path', type=str,
@@ -160,18 +170,18 @@ if __name__ == '__main__':
                         help='The type of qualitative evaluation to do, as numbered in the question (1-3).')
     args = parser.parse_args()
 
-    batch_size = 32
-    num_samples = batch_size
+    vae_batch_size = 32
+    gan_batch_size = 128
     # Load trained model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if 'gan' in args.model_path:
-        nn = GAN(device=device, model_path=args.model_path)
+        nn = GAN(batch_size=gan_batch_size, device=device, model_path=args.model_path)
     if 'vae' in args.model_path:
-        nn = VAE(batch_size=32, device=device, model_path=args.model_path)
+        nn = VAE(batch_size=vae_batch_size, device=device, model_path=args.model_path)
 
     # Do qualitative examination
     if args.eval_type == 1:
-        provide_samples(nn, num_samples, device=device)
+        provide_samples(nn, num_samples=6, device=device)
     elif args.eval_type == 2:
         disentangle(nn, device=device)
     elif args.eval_type == 3:
