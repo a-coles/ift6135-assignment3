@@ -171,7 +171,7 @@ if __name__ == '__main__':
 
     # Do qualitative examination
     if args.eval_type == 1:
-        provide_samples(nn, num_samples=32, device=device)
+        provide_samples(nn, num_samples, device=device)
     elif args.eval_type == 2:
         disentangle(nn, device=device)
     elif args.eval_type == 3:
