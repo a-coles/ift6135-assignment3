@@ -18,13 +18,13 @@ from torch.autograd import Variable
 
 
 def plot_sample(sample, filename):
-    # sample = sample.reshape(3, 32, 32)
-    # sample = np.moveaxis(sample, 0, 2)
-    # sample = ((sample * 255).astype(np.uint8))
-    # plt.imshow(sample)
-    # path = os.path.join('eval', filename)
-    # plt.savefig(path)
-    # plt.clf()
+    '''sample = sample.reshape(3, 32, 32)
+    sample = np.moveaxis(sample, 0, 2)
+    sample = ((sample * 255).astype(np.uint8))
+    plt.imshow(sample)
+    path = os.path.join('eval', filename)
+    plt.savefig(path)
+    plt.clf()'''
 
     sample = sample.view(3, 32, 32)
     path = os.path.join('eval', filename)
@@ -40,7 +40,8 @@ def provide_samples(nn, num_samples=6, device='cpu'):
     if nn.name == 'gan':
         # Note: first argument is batch size of trained model,
         # second argument is size of latent space (don't change that!)
-        noise = Variable(torch.randn(num_samples, 100)).to(device)
+        #noise = Variable(torch.randn(num_samples, 100)).to(device)
+        noise = Variable(torch.randn(num_samples, 100, 1, 1)).to(device)
         samples = nn.model.generator(noise)
         # samples = samples.detach().cpu().numpy()
         print('sample shape is' ,samples.shape)
@@ -66,7 +67,8 @@ def disentangle(nn, epsilon=1e-1, device='cpu'):
     NOTE: Is this the right idea for "sample from the prior"?
     '''
     if nn.name == 'gan':
-        noise = Variable(torch.randn(1, 100)).to(device)
+        #noise = Variable(torch.randn(1, 100)).to(device)
+        noise = Variable(torch.randn(1, 100, 1, 1)).to(device)
         # Just take one sample
         non_perturbed = nn.model.generator(noise)
         non_perturbed = non_perturbed.detach().cpu().numpy()

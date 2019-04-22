@@ -267,7 +267,7 @@ class GAN():
             g_loss += g_err
 
         self.d_train_ce.append(ce)
-        return d_loss, g_loss
+        return d_loss / self.batch_size, g_loss / self.batch_size
 
     def valid_epoch(self, valid_loader, loss_fn=None):
         '''
@@ -309,7 +309,7 @@ class GAN():
             g_loss += g_err.item()
 
         self.d_valid_ce.append(ce.item())
-        return d_loss, g_loss
+        return d_loss / self.batch_size, g_loss / self.batch_size
 
 
     def get_gpgrad(self, real, fake):
@@ -348,7 +348,6 @@ class GAN():
         fake = fake.view(fake.size(0), -1).to(self.device)
         d_real = self.model.discriminator(real)
         d_fake = self.model.discriminator(fake)
-
         
         # Get the WGAN-GP error.
         grad = self.get_gpgrad(real, fake)
@@ -362,6 +361,7 @@ class GAN():
         # Update weights.
         d_optimizer.step()
 
+        #print('err:', err.item())
         return err.item(), ce.item()
 
     def train_generator(self, fake, loss_fn=None, g_optimizer=None):
