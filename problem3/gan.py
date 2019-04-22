@@ -226,23 +226,28 @@ class GAN():
                                                           d_optimizer=d_optimizer,
                                                           g_optimizer=g_optimizer,
                                                           d_update=d_update)
-
-            d_valid_loss, g_valid_loss = self.valid_epoch(valid_loader,
-                                                          loss_fn=loss_fn)
+            #with torch.no_grad():
+            #    d_valid_loss, g_valid_loss = self.valid_epoch(valid_loader,
+            #                                                  loss_fn=loss_fn)
 
             # For logging
-            # already floats
-
             self.d_train_losses.append(d_train_loss)
-            self.d_valid_losses.append(d_valid_loss)
+            #self.d_valid_losses.append(d_valid_loss)
             self.g_train_losses.append(g_train_loss)
-            self.g_valid_losses.append(g_valid_loss)
+            #self.g_valid_losses.append(g_valid_loss)
 
             print('Epoch {}:'.format(epoch))
-            print(' \t d_train_loss: {} \t d_valid_loss: {}'.format(d_train_loss, d_valid_loss))
-            print(' \t g_train_loss: {} \t g_valid_loss: {}'.format(g_train_loss, g_valid_loss))
+            print(' \t d_train_loss: {}'.format(d_train_loss))
+            print(' \t g_train_loss: {}'.format(g_train_loss))
+            #print(' \t d_train_loss: {} \t d_valid_loss: {}'.format(d_train_loss, d_valid_loss))
+            #print(' \t g_train_loss: {} \t g_valid_loss: {}'.format(g_train_loss, g_valid_loss))
 
             self.save_model('gan.pt')
+
+            del d_train_loss
+            #del d_valid_loss
+            del g_train_loss
+            #del g_valid_loss
 
     def train_epoch(self, train_loader, loss_fn=None, d_optimizer=None, g_optimizer=None, d_update=None):
         '''
@@ -362,6 +367,8 @@ class GAN():
         d_optimizer.step()
 
         #print('err:', err.item())
+        del real
+        del fake
         return err.item(), ce.item()
 
     def train_generator(self, fake, loss_fn=None, g_optimizer=None):
