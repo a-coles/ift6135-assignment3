@@ -189,6 +189,6 @@ class VAE():
         '''
         Approximates the log-likelihood via importance sampling.
         '''
-        estimates = log_likelihood_estimate(self.model, loader, device, batch_size, loss_fn)
+        estimates = log_likelihood_estimate(self.model, loader, device, batch_size)
         return estimates
 

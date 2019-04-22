@@ -5,6 +5,7 @@ This file contains evaluation methods for the VAE.
 import torch
 import torch.nn as nn
 import torch.distributions as dists
+from scipy.stats import norm
 import numpy as np
 
 
@@ -24,11 +25,11 @@ def elbo_loss(x, x_hat, batch_size, mu, logvar):
     return loss
 
 
-def log_likelihood_estimate(model, loader, device, batch_size, loss_fn):
+def log_likelihood_estimate(model, loader, device, batch_size):
     '''
     Estimates the log likelihood by importance sampling.
     '''
-    k = 5
+    k = 50
     k_loss = []
     model.eval()
     # per batch
@@ -58,17 +59,21 @@ def log_likelihood_estimate(model, loader, device, batch_size, loss_fn):
             p_gauss = dists.Normal(mu_0, sig_1)
             p_samp = p_gauss.sample_n(k)
             # send to device
-            q_samp = q_samp.to(device)
-            p_samp = p_samp.to(device)
+            q = norm.pdf(q_samp.cpu())
+            p = norm.pdf(p_samp.cpu())
+            p_t = torch.from_numpy(p)
+            q_t = torch.from_numpy(q)
+            q_t = q_t.to(device)
+            p_t = p_t.to(device)
             # take sample
-            DKL = DKL_ksample(q_samp, p_samp, k)
+            DKL = DKL_ksample(q_t, p_t, k)
             # calc loss
             recon_loss = nn.BCELoss(reduction='sum')
             lo = recon_loss(output.float(), xi_m.float())
             loss = lo + DKL
             # loss = loss_fn(xi_m, output, batch_size=1, mu=mu, logvar=logvar)
             # print('log sum exp loss is',loss)
-            k_loss.append(logSumExp(loss))
+            k_loss.append(logSumExp(loss/k))
     return k_loss
 
 
@@ -77,12 +82,11 @@ def DKL_ksample(q, p, k):
     dkl = -1 * (q * torch.log(q) - q * torch.log(p))
     # check axis
     dkl = torch.mean(dkl)
-    print('dkl shape si',dkl.shape)
     return dkl
 
 def logSumExp(input):
     inp = input.cpu().detach().numpy()
     max = np.max(inp)
-    d = inp - max
-    sumOfExp = np.exp(d).sum()
-    return max + np.log(sumOfExp)
+    n = inp - max
+    exp = np.exp(n).sum()
+    return max + np.log(exp)
