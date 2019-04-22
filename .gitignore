@@ -9,6 +9,12 @@ __pycache__/
 
 .idea/
 
+# mac
+*.DS_Store
+# strange caching files
+*._* 
+
+
 # C extensions
 *.so
 

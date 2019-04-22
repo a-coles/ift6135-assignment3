@@ -11,20 +11,25 @@ import torch
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-
-from assignment.problem3.gan import GAN
+import torchvision
+from gan import GAN
+from vae import VAE
 from torch.autograd import Variable
 
 
 def plot_sample(sample, filename):
-    sample = sample.reshape(3, 32, 32)
-    sample = np.moveaxis(sample, 0, 2)
-    sample = ((sample * 255).astype(np.uint8))
-    print('sample shape:', sample)
-    plt.imshow(sample)
+    # sample = sample.reshape(3, 32, 32)
+    # sample = np.moveaxis(sample, 0, 2)
+    # sample = ((sample * 255).astype(np.uint8))
+    # plt.imshow(sample)
+    # path = os.path.join('eval', filename)
+    # plt.savefig(path)
+    # plt.clf()
+
+    sample = sample.view(3, 32, 32)
     path = os.path.join('eval', filename)
-    plt.savefig(path)
-    plt.clf()
+    torchvision.utils.save_image(sample, path, normalize=True)
+
 
 
 def provide_samples(nn, num_samples=6, device='cpu'):
@@ -37,12 +42,21 @@ def provide_samples(nn, num_samples=6, device='cpu'):
         # second argument is size of latent space (don't change that!)
         noise = Variable(torch.randn(num_samples, 100)).to(device)
         samples = nn.model.generator(noise)
-        samples = samples.detach().cpu().numpy()
+        # samples = samples.detach().cpu().numpy()
+        print('sample shape is' ,samples.shape)
+        for i in range(num_samples):
+            sample = samples[i]
+            filename = '{}_sample{}.png'.format(nn.name, i)
+            plot_sample(sample, filename)
 
-    for i in range(num_samples):
-        sample = samples[i]
-        filename = '{}_sample{}.png'.format(nn.name, i)
-        plot_sample(sample, filename)
+    if nn.name == 'vae':
+        noise = Variable(torch.randn(num_samples, 100)).to(device)
+        # or model.VAECarc.decoder?
+        samples = nn.model.decoder(noise)
+        samples = samples.detach().cpu().numpy()
+        print('sample shape is' ,samples.shape)
+        filename = '{}_sample.png'.format(nn.name)
+        plot_sample(samples, filename)
 
 
 def disentangle(nn, epsilon=1e-1, device='cpu'):
@@ -55,6 +69,12 @@ def disentangle(nn, epsilon=1e-1, device='cpu'):
         noise = Variable(torch.randn(1, 100)).to(device)
         # Just take one sample
         non_perturbed = nn.model.generator(noise)
+        non_perturbed = non_perturbed.detach().cpu().numpy()
+
+    if nn.name == 'vae':
+        noise = Variable(torch.randn(1, 100)).to(device)
+        # Just take one sample
+        non_perturbed = nn.model.decoder(noise)
         non_perturbed = non_perturbed.detach().cpu().numpy()
 
     # Plot the non-perturbed version
@@ -86,11 +106,19 @@ def interpolate1(nn, device='cpu'):
         z0 = Variable(torch.randn(1, 100)).to(device)
         z1 = Variable(torch.randn(1, 100)).to(device)
 
+    if nn.name == 'vae':
+        z0 = Variable(torch.randn(1, 100)).to(device)
+        z1 = Variable(torch.randn(1, 100)).to(device)
+
     for alpha in alphas:
         z_alpha = (alpha * z0) + ((1 - alpha) * z1)
         if nn.name == 'gan':
             x_alpha = nn.model.generator(z_alpha).detach().cpu().numpy()
             filename = '{}_interp1_{}.png'.format(nn.name, alpha)
+            plot_sample(x_alpha, filename)
+        if nn.name == 'vae':
+            x_alpha = nn.model.generator(z_alpha).detach().cpu().numpy()
+            filename = '{}_interp1_{}_VAE.png'.format(nn.name, alpha)
             plot_sample(x_alpha, filename)
 
 
@@ -107,6 +135,12 @@ def interpolate2(nn, device='cpu'):
         z1 = Variable(torch.randn(1, 100)).to(device)
         x0 = nn.model.generator(z0).detach().cpu().numpy()
         x1 = nn.model.generator(z1).detach().cpu().numpy()
+    if nn.name == 'vae':
+        z0 = Variable(torch.randn(1, 100)).to(device)
+        z1 = Variable(torch.randn(1, 100)).to(device)
+        x0 = nn.model.encoder(z0).detach().cpu().numpy()
+        x1 = nn.model.encoder(z1).detach().cpu().numpy()
+
 
     for alpha in alphas:
         x_hat_alpha = (alpha * x0) + ((1 - alpha) * x1)
@@ -115,6 +149,8 @@ def interpolate2(nn, device='cpu'):
 
 
 if __name__ == '__main__':
+    print('Plotting qualitatively...')
+
     # Parse arguments
     parser = argparse.ArgumentParser(description='Do qualitative evaluation of a trained model.')
     parser.add_argument('model_path', type=str,
@@ -123,10 +159,14 @@ if __name__ == '__main__':
                         help='The type of qualitative evaluation to do, as numbered in the question (1-3).')
     args = parser.parse_args()
 
+    vae_batch_size = 32
+    gan_batch_size = 128
     # Load trained model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if 'gan' in args.model_path:
-        nn = GAN(device=device, model_path=args.model_path)
+        nn = GAN(batch_size=gan_batch_size, device=device, model_path=args.model_path)
+    if 'vae' in args.model_path:
+        nn = VAE(batch_size=vae_batch_size, device=device, model_path=args.model_path)
 
     # Do qualitative examination
     if args.eval_type == 1:
