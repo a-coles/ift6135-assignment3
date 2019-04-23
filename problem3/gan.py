@@ -18,63 +18,41 @@ from memory_management_utils import dump_tensors
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
-        # Several-layer MLP for now
-        '''
-        self.fc1 = nn.Linear(3072, 4)
-        self.fc4 = nn.Linear(4, 1)
-        self.relu = nn.ReLU()
-        self.tanh = nn.Tanh()
-        '''
-        
-        # Filters [256, 512, 1024]
-        # Input_dim = channels (Cx64x64)
-        # Output_dim = 1
-
         channels = 3
         self.main_module = nn.Sequential(
             # Omitting batch normalization in critic because our new penalized training objective (WGAN with gradient penalty) is no longer valid
             # in this setting, since we penalize the norm of the critic's gradient with respect to each input independently and not the enitre batch.
             # There is not good & fast implementation of layer normalization --> using per instance normalization nn.InstanceNorm2d()
             # Image (Cx32x32)
-            nn.Conv2d(in_channels=channels, out_channels=4, kernel_size=4, stride=2, padding=1),
-            #nn.InstanceNorm2d(256, affine=True),
+
+            nn.Conv2d(in_channels=channels, out_channels=8, kernel_size=4, stride=2, padding=1),
+            # nn.BatchNorm2d(num_features=16),
             nn.LeakyReLU(0.2, inplace=True),
+            #nn.Dropout2d(p=0.1),
 
             # State (256x16x16)
-            nn.Conv2d(in_channels=4, out_channels=8, kernel_size=4, stride=2, padding=1),
-            #nn.InstanceNorm2d(512, affine=True),
+            nn.Conv2d(in_channels=8, out_channels=16, kernel_size=4, stride=2, padding=1),
+            # nn.BatchNorm2d(num_features=32),
             nn.LeakyReLU(0.2, inplace=True),
+            #nn.Dropout2d(p=0.1),
 
             # State (512x8x8)
-            nn.Conv2d(in_channels=8, out_channels=16, kernel_size=4, stride=2, padding=1),
-            #nn.InstanceNorm2d(1024, affine=True),
-            nn.LeakyReLU(0.2, inplace=True))
+            nn.Conv2d(in_channels=16, out_channels=32, kernel_size=4, stride=2, padding=1),
+            # nn.BatchNorm2d(num_features=64),
+            nn.LeakyReLU(0.2, inplace=True),
+            #nn.Dropout2d(p=0.1),
+
+            )
+
             # output of main module --> State (1024x4x4)
 
         self.output = nn.Sequential(
             # The output of D is no longer a probability, we do not apply sigmoid at the output of D.
-            nn.Conv2d(in_channels=16, out_channels=1, kernel_size=4, stride=1, padding=0))
+            nn.Conv2d(in_channels=32, out_channels=1, kernel_size=4, stride=1, padding=0))
 
     def forward(self, inp):
-        '''
-        # Save for gradient penalty
-        self.d_inp = Variable(inp, requires_grad=True)
-        self.d_inp.retain_grad()
-
-        # Forward prop
-        out = self.fc1(self.d_inp)
-        # out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.fc4(out)
-        out = self.tanh(out)
-        '''
-        # self.d_inp = Variable(inp, requires_grad=True)
-        # self.d_inp = self.d_inp.view(-1, 3, 32, 32)
-
-        x = self.main_module(inp.view(-1, 3, 32, 32))
+        x = self.main_module(inp)  # .view(-1, 3, 32, 32)
         return self.output(x)
-        
 
 
 class Generator(nn.Module):
@@ -86,69 +64,33 @@ class Generator(nn.Module):
         # NOTE: be careful changing the numbers here -- we MUST have an output
         # of [batch_size, 3 (channels), 32, 32] since SVHN is 32x32 and we are trying
         # to generate fake SVHN data.
-
-        
-        # self.fc = nn.Linear(in_features=100, out_features=16)
-        # self.bn_fc = nn.BatchNorm1d(16)
-        # self.elu = nn.ELU()
-        # self.up = nn.UpsamplingBilinear2d(scale_factor=2)
-        # self.conv1 = nn.Conv2d(in_channels=16, out_channels=8, kernel_size=3, padding=4)
-        # self.bn1 = nn.BatchNorm2d(8)
-        # self.conv2 = nn.Conv2d(in_channels=8, out_channels=3, kernel_size=4, padding=2)
-        # self.bn2 = nn.BatchNorm2d(3)
-        # self.conv3 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, padding=2)
-        # self.bn3 = nn.BatchNorm2d(3)
-        # self.tanh = nn.Tanh()
-        # # self.sig = nn.Sigmoid()
-        # torch.nn.init.xavier_uniform_(self.fc.weight)
-        # torch.nn.init.xavier_uniform_(self.conv1.weight)
-        # torch.nn.init.xavier_uniform_(self.conv2.weight)
-        # torch.nn.init.xavier_uniform_(self.conv3.weight)
         channels = 3
 
         self.main_module = nn.Sequential(
             # Z latent vector 100
-            nn.ConvTranspose2d(in_channels=100, out_channels=16, kernel_size=4, stride=1, padding=0),
-            nn.BatchNorm2d(num_features=16),
+            nn.ConvTranspose2d(in_channels=100, out_channels=64, kernel_size=4, stride=1, padding=0),
+            nn.BatchNorm2d(num_features=64),
             nn.ReLU(True),
 
             # State (1024x4x4)
-            nn.ConvTranspose2d(in_channels=16, out_channels=8, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(num_features=8),
+            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(num_features=32),
             nn.ReLU(True),
 
             # State (512x8x8)
-            nn.ConvTranspose2d(in_channels=8, out_channels=4, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(num_features=4),
+            nn.ConvTranspose2d(in_channels=32, out_channels=16, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(num_features=16),
             nn.ReLU(True),
 
             # State (256x16x16)
-            nn.ConvTranspose2d(in_channels=4, out_channels=channels, kernel_size=4, stride=2, padding=1))
+            nn.ConvTranspose2d(in_channels=16, out_channels=channels, kernel_size=4, stride=2, padding=1))
             # output of main module --> Image (Cx32x32)
 
-        self.output = nn.Tanh()
+        # self.output = nn.Tanh()
+        self.output = nn.Sigmoid()
 
     def forward(self, inp):
         
-        # out = self.fc(inp)
-        # out = self.bn_fc(out)
-        # # print('     fc:', out.size())
-        # out = self.elu(out)
-        # out = out.unsqueeze(2).unsqueeze(2)
-        # # print('     reshape:', out.size())
-        # out = self.conv1(out)
-        # out = self.bn1(out)
-        # # print('     conv1:', out.size())
-        # out = self.up(self.elu(out))
-        # # print('     up1:', out.size())
-        # out = self.conv2(out)
-        # out = self.bn2(out)
-        # # print('     conv2:', out.size())
-        # out = self.up(self.elu(out))
-        # # print('     up2:', out.size())
-        # out = self.conv3(out)
-        # out = self.tanh(out)
-
         x = self.main_module(inp)
         return self.output(x)
 
@@ -196,8 +138,8 @@ class GAN():
             fp.write(header)
             for e in range(num_epochs):
                 fp.write('{},{},{}\n'.format(e,
-                                             self.d_train_losses[e], self.d_valid_losses[e],
-                                             self.g_train_losses[e], self.g_valid_losses[e]))
+                                             self.d_train_losses[e],#, self.d_valid_losses[e],
+                                             self.g_train_losses[e]))#, self.g_valid_losses[e]))
 
     def log_d_crossentropy(self):
         '''
@@ -213,12 +155,12 @@ class GAN():
     def get_noise(self, batch_size):
         return Variable(torch.randn(batch_size, 100, 1, 1)).to(device=self.device)
 
-    def train(self, train_loader, valid_loader, loss_fn=None, num_epochs=50, d_update=1):
+    def train(self, train_loader, valid_loader, loss_fn=None, num_epochs=20, d_update=5):
         '''
         Wrapper function for training on training set + evaluation on validation set.
         '''
         d_optimizer = torch.optim.Adam(self.model.discriminator.parameters(), lr=1e-3)
-        g_optimizer = torch.optim.Adam(self.model.generator.parameters(), lr=1e-3)
+        g_optimizer = torch.optim.Adam(self.model.generator.parameters(), lr=1e-4)
 
         for epoch in range(num_epochs):
             d_train_loss, g_train_loss = self.train_epoch(train_loader,
@@ -226,28 +168,18 @@ class GAN():
                                                           d_optimizer=d_optimizer,
                                                           g_optimizer=g_optimizer,
                                                           d_update=d_update)
-            #with torch.no_grad():
-            #    d_valid_loss, g_valid_loss = self.valid_epoch(valid_loader,
-            #                                                  loss_fn=loss_fn)
-
             # For logging
             self.d_train_losses.append(d_train_loss)
-            #self.d_valid_losses.append(d_valid_loss)
             self.g_train_losses.append(g_train_loss)
-            #self.g_valid_losses.append(g_valid_loss)
 
             print('Epoch {}:'.format(epoch))
             print(' \t d_train_loss: {}'.format(d_train_loss))
             print(' \t g_train_loss: {}'.format(g_train_loss))
-            #print(' \t d_train_loss: {} \t d_valid_loss: {}'.format(d_train_loss, d_valid_loss))
-            #print(' \t g_train_loss: {} \t g_valid_loss: {}'.format(g_train_loss, g_valid_loss))
 
             self.save_model('gan.pt')
 
             del d_train_loss
-            #del d_valid_loss
             del g_train_loss
-            #del g_valid_loss
 
     def train_epoch(self, train_loader, loss_fn=None, d_optimizer=None, g_optimizer=None, d_update=None):
         '''
@@ -327,7 +259,14 @@ class GAN():
         x_hat = (t * fake.data) + ((1 - t) * real.data)
         x_hat.requires_grad = True
         d_x_hat = self.model.discriminator(x_hat)
-        grad = torch.autograd.grad(d_x_hat.mean(), x_hat, retain_graph=True, create_graph=True)[0]
+        # Let us take gradient from vector, not scalar
+        ones = torch.ones(d_x_hat.size()).to(self.device)
+        grad = torch.autograd.grad(d_x_hat, x_hat, 
+                                   grad_outputs=ones,
+                                   retain_graph=True, create_graph=True)[0]
+        # print('grad:', grad.size())
+        #print('grad[0]', grad[0])
+        #print('grad[1',  grad[1])
         return grad
 
     def discriminator_ce(self, d_real, d_fake):
@@ -349,8 +288,8 @@ class GAN():
         d_optimizer.zero_grad()
 
         # Train on the real and fake data.
-        real = real.view(real.size(0), -1).to(self.device)
-        fake = fake.view(fake.size(0), -1).to(self.device)
+        # real = real.view(real.size(0), -1).to(self.device)
+        # fake = fake.view(fake.size(0), -1).to(self.device)
         d_real = self.model.discriminator(real)
         d_fake = self.model.discriminator(fake)
         
@@ -366,7 +305,6 @@ class GAN():
         # Update weights.
         d_optimizer.step()
 
-        #print('err:', err.item())
         del real
         del fake
         return err.item(), ce.item()
@@ -381,7 +319,7 @@ class GAN():
 
         # Generate fake data.
         # Note: right now the discriminator is a simple MLP, so we need to flatten our images.
-        fake = fake.view(fake.size(0), -1).to(self.device)
+        # fake = fake.view(fake.size(0), -1).to(self.device)
         d_fake = self.model.discriminator(fake)
 
         # Update.

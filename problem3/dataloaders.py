@@ -16,13 +16,17 @@ def get_loaders(batch_size=100, valid_split=0.2, transform=None):
 
     # We need to create a train and a valid dataloader from the training set, so first
     # create datasets for each from the training set
-    transform = transforms.Compose([transforms.ToTensor()])
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        # transforms.Normalize((.5, .5, .5),
+        #                      (.5, .5, .5))
+    ])
     train = datasets.SVHN(root='SVHN', split='train', download=False, transform=transform)
     valid = datasets.SVHN(root='SVHN', split='extra', download=False, transform=transform)
 
     # Need to sample indices randomly from the training set
-    # len_train = 1000 # len(train)
-    len_train = len(train)
+    #len_train = 1000 # len(train)
+    len_train = len(train)  
     indices = list(range(len_train))
     split = int(np.floor(valid_split * len_train))
     np.random.seed(0)

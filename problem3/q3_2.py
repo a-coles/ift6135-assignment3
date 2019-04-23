@@ -17,22 +17,21 @@ from vae import VAE
 from torch.autograd import Variable
 
 
-def plot_sample(sample, filename):
-    '''sample = sample.reshape(3, 32, 32)
-    sample = np.moveaxis(sample, 0, 2)
-    sample = ((sample * 255).astype(np.uint8))
-    plt.imshow(sample)
-    path = os.path.join('eval', filename)
-    plt.savefig(path)
-    plt.clf()'''
-
+def plot_sample(sample, filename, dirname='eval'):
+    # sample = sample.reshape(3, 32, 32)
+    # sample = np.moveaxis(sample, 0, 2)
+    # sample = ((sample * 255).astype(np.uint8))
+    # plt.imshow(sample)
+    # path = os.path.join('eval', filename)
+    # plt.savefig(path)
+    # plt.clf()
     sample = sample.view(3, 32, 32)
-    path = os.path.join('eval', filename)
+    path = os.path.join(dirname, filename)
     torchvision.utils.save_image(sample, path, normalize=True)
 
 
 
-def provide_samples(nn, num_samples=6, device='cpu'):
+def provide_samples(nn, num_samples=50, dirname='eval', device='cpu'):
     '''
     Generate samples. For GANs, this means generating from
     the generator.
@@ -48,19 +47,25 @@ def provide_samples(nn, num_samples=6, device='cpu'):
         for i in range(num_samples):
             sample = samples[i]
             filename = '{}_sample{}.png'.format(nn.name, i)
-            plot_sample(sample, filename)
+            plot_sample(sample, filename, dirname=dirname)
 
     if nn.name == 'vae':
         noise = Variable(torch.randn(num_samples, 100)).to(device)
         # or model.VAECarc.decoder?
         samples = nn.model.decoder(noise)
-        samples = samples.detach().cpu().numpy()
+        #samples = samples.detach().cpu().numpy()
         print('sample shape is' ,samples.shape)
-        filename = '{}_sample.png'.format(nn.name)
-        plot_sample(samples, filename)
+        for i in range(num_samples):
+            sample = samples[i]
+            filename = '{}_sample{}.png'.format(nn.name, i)
+            plot_sample(sample, filename, dirname=dirname)
+        
+
+        # filename = '{}_sample.png'.format(nn.name)
+        # plot_sample(samples, filename)
 
 
-def disentangle(nn, epsilon=1e-1, device='cpu'):
+def disentangle(nn, epsilon=1e1, device='cpu'):
     '''
     Sample from the prior, make small perturbations for each dimension,
     and see if there are interesting changes.
@@ -71,13 +76,13 @@ def disentangle(nn, epsilon=1e-1, device='cpu'):
         noise = Variable(torch.randn(1, 100, 1, 1)).to(device)
         # Just take one sample
         non_perturbed = nn.model.generator(noise)
-        non_perturbed = non_perturbed.detach().cpu().numpy()
+        #non_perturbed = non_perturbed.detach().cpu().numpy()
 
     if nn.name == 'vae':
         noise = Variable(torch.randn(1, 100)).to(device)
         # Just take one sample
         non_perturbed = nn.model.decoder(noise)
-        non_perturbed = non_perturbed.detach().cpu().numpy()
+        # non_perturbed = non_perturbed.detach().cpu().numpy()
 
     # Plot the non-perturbed version
     non_perturbed_name = '{}_perturb_none.png'.format(nn.name)
@@ -88,10 +93,12 @@ def disentangle(nn, epsilon=1e-1, device='cpu'):
     dims = [0, 25, 50, 75, 99]
     for dim in dims:
         pert_noise = noise
-        print(pert_noise.size())
         pert_noise[0][dim] += epsilon
-        pert = nn.model.generator(pert_noise)
-        pert = pert.detach().cpu().numpy()
+        if nn.name == 'vae':
+            pert = nn.model.decoder(pert_noise)
+        else:
+            pert = nn.model.generator(pert_noise)
+        # pert = pert.detach().cpu().numpy()
         pert_name = '{}_perturb_{}.png'.format(nn.name, dim)
         plot_sample(pert, pert_name)
 
@@ -105,8 +112,8 @@ def interpolate1(nn, device='cpu'):
     '''
     alphas = np.linspace(0, 1, 11)
     if nn.name == 'gan':
-        z0 = Variable(torch.randn(1, 100)).to(device)
-        z1 = Variable(torch.randn(1, 100)).to(device)
+        z0 = Variable(torch.randn(1, 100, 1, 1)).to(device)
+        z1 = Variable(torch.randn(1, 100, 1, 1)).to(device)
 
     if nn.name == 'vae':
         z0 = Variable(torch.randn(1, 100)).to(device)
@@ -115,11 +122,11 @@ def interpolate1(nn, device='cpu'):
     for alpha in alphas:
         z_alpha = (alpha * z0) + ((1 - alpha) * z1)
         if nn.name == 'gan':
-            x_alpha = nn.model.generator(z_alpha).detach().cpu().numpy()
+            x_alpha = nn.model.generator(z_alpha)  #.detach().cpu().numpy()
             filename = '{}_interp1_{}.png'.format(nn.name, alpha)
             plot_sample(x_alpha, filename)
         if nn.name == 'vae':
-            x_alpha = nn.model.generator(z_alpha).detach().cpu().numpy()
+            x_alpha = nn.model.decoder(z_alpha)  # .detach().cpu().numpy()
             filename = '{}_interp1_{}_VAE.png'.format(nn.name, alpha)
             plot_sample(x_alpha, filename)
 
@@ -133,19 +140,20 @@ def interpolate2(nn, device='cpu'):
     '''
     alphas = np.linspace(0, 1, 11)
     if nn.name == 'gan':
-        z0 = Variable(torch.randn(1, 100)).to(device)
-        z1 = Variable(torch.randn(1, 100)).to(device)
-        x0 = nn.model.generator(z0).detach().cpu().numpy()
-        x1 = nn.model.generator(z1).detach().cpu().numpy()
+        z0 = Variable(torch.randn(1, 100, 1, 1)).to(device)
+        z1 = Variable(torch.randn(1, 100, 1, 1)).to(device)
+        x0 = nn.model.generator(z0)#.detach().cpu().numpy()
+        x1 = nn.model.generator(z1)#.detach().cpu().numpy()
     if nn.name == 'vae':
         z0 = Variable(torch.randn(1, 100)).to(device)
         z1 = Variable(torch.randn(1, 100)).to(device)
-        x0 = nn.model.encoder(z0).detach().cpu().numpy()
-        x1 = nn.model.encoder(z1).detach().cpu().numpy()
+        x0 = nn.model.decoder(z0) # .detach().cpu().numpy()
+        x1 = nn.model.decoder(z1) # .detach().cpu().numpy()
 
 
     for alpha in alphas:
         x_hat_alpha = (alpha * x0) + ((1 - alpha) * x1)
+        alpha = str(alpha).replace('.', '_')
         filename = '{}_interp2_{}.png'.format(nn.name, alpha)
         plot_sample(x_hat_alpha, filename)
 
@@ -165,6 +173,7 @@ if __name__ == '__main__':
     gan_batch_size = 128
     # Load trained model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     if 'gan' in args.model_path:
         nn = GAN(batch_size=gan_batch_size, device=device, model_path=args.model_path)
     if 'vae' in args.model_path:
@@ -179,5 +188,7 @@ if __name__ == '__main__':
         interpolate1(nn, device=device)
     elif args.eval_type == 4:
         interpolate2(nn, device=device)
+    elif args.eval_type == 5:   # For FID
+        provide_samples(nn, 1000, dirname=os.path.join('fid', 'samples'), device=device)
     else:
         raise ValueError('Unsupported evaluation type.')

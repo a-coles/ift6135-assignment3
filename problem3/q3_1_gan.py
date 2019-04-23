@@ -15,16 +15,11 @@ def wgan_gp(Dx, DGy, grad=None, lamb=10, objective='max'):
     if objective == 'max':
         # We are coming from the discriminator.
         grad_penalty = lamb * (torch.norm(grad, dim=1) - 1).pow(2).mean()
-        #print('Dx:', Dx.mean())
-        #print('DGy:', DGy.mean())
-        #print('GP:', grad_penalty)
         loss = Dx.mean() - DGy.mean() - grad_penalty
         loss = -1 * loss
     elif objective == 'min':
         # We are coming from the generator -- the other terms in the loss don't matter.
-        # loss = -1 * DGy.mean()
-        # DGy = torch.nn.BCEWithLogitsLoss()(DGy, fake_targets)
-        loss = -DGy.mean()
+        loss = - DGy.mean()
     return loss
 
 

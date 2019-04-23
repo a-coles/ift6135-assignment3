@@ -46,35 +46,70 @@ class Encoder(nn.Module):
         return mu, logvar
 
 
+
 class Decoder(nn.Module):
     def __init__(self, device='cpu'):
         super(Decoder, self).__init__()
-        # self.device = device
-        self.fc = nn.Linear(in_features=100, out_features=16)
-        self.elu = nn.ELU()
-        self.up = nn.UpsamplingBilinear2d(scale_factor=2)
-        self.conv1 = nn.Conv2d(in_channels=16, out_channels=8, kernel_size=3, padding=4)
-        self.conv2 = nn.Conv2d(in_channels=8, out_channels=3, kernel_size=4, padding=2)
-        self.conv3 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, padding=2)
-        # self.conv4 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=2, padding=2)
-        self.sigmoid = nn.Sigmoid()
-
-        torch.nn.init.xavier_uniform_(self.fc.weight)
-        torch.nn.init.xavier_uniform_(self.conv1.weight)
-        torch.nn.init.xavier_uniform_(self.conv2.weight)
-        torch.nn.init.xavier_uniform_(self.conv3.weight)
+        channels = 3
+        # Z latent vector 100
+        self.conv1 = nn.ConvTranspose2d(in_channels=100, out_channels=64, kernel_size=4, stride=1, padding=0)
+        self.BN1 = nn.BatchNorm2d(num_features=64)
+        self.relu = nn.ReLU()
+                # State (1024x4x4)
+        self.conv2 = nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1)
+        self.BN2 = nn.BatchNorm2d(num_features=32)
+                # State (512x8x8)
+        self.conv3 = nn.ConvTranspose2d(in_channels=32, out_channels=16, kernel_size=4, stride=2, padding=1)
+        self.BN3 = nn.BatchNorm2d(num_features=16)
+                # State (256x16x16)
+        self.conv4 = nn.ConvTranspose2d(in_channels=16, out_channels=channels, kernel_size=4, stride=2, padding=1)
+        self.sig = nn.Sigmoid()
 
     def forward(self, inp):
-        out = self.fc(inp)
-        out = self.elu(out)
-        out = out.unsqueeze(2).unsqueeze(2)
+        out = inp.unsqueeze(2).unsqueeze(2)
         out = self.conv1(out)
-        out = self.up(self.elu(out))
+        out = self.BN1(out)
+        out = self.relu(out)
+        # out = out.unsqueeze(2).unsqueeze(2)
         out = self.conv2(out)
-        out = self.up(self.elu(out))
+        out = self.BN2(out)
+        out = self.relu(out)
         out = self.conv3(out)
-        out = self.sigmoid(out)
+        out = self.BN3(out)
+        out = self.relu(out)
+        out = self.conv4(out)
+        out = self.sig(out)
         return out
+
+# class Decoder(nn.Module):
+#     def __init__(self, device='cpu'):
+#         super(Decoder, self).__init__()
+#         # self.device = device
+#         self.fc = nn.Linear(in_features=100, out_features=16)
+#         self.elu = nn.ELU()
+#         self.up = nn.UpsamplingBilinear2d(scale_factor=2)
+#         self.conv1 = nn.Conv2d(in_channels=16, out_channels=8, kernel_size=3, padding=4)
+#         self.conv2 = nn.Conv2d(in_channels=8, out_channels=3, kernel_size=4, padding=2)
+#         self.conv3 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, padding=2)
+#         # self.conv4 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=2, padding=2)
+#         self.sigmoid = nn.Sigmoid()
+
+#         torch.nn.init.xavier_uniform_(self.fc.weight)
+#         torch.nn.init.xavier_uniform_(self.conv1.weight)
+#         torch.nn.init.xavier_uniform_(self.conv2.weight)
+#         torch.nn.init.xavier_uniform_(self.conv3.weight)
+
+#     def forward(self, inp):
+#         out = self.fc(inp)
+#         out = self.elu(out)
+#         out = out.unsqueeze(2).unsqueeze(2)
+#         out = self.conv1(out)
+#         out = self.up(self.elu(out))
+#         out = self.conv2(out)
+#         out = self.up(self.elu(out))
+#         out = self.conv3(out)
+#         out = self.sigmoid(out)
+#         return out
 
 
 
