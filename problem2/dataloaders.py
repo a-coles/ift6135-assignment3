@@ -11,9 +11,11 @@ from torch.utils.data import TensorDataset, DataLoader
 
 def get_binarized_mnist_loaders(batch_size=512):
     # Load in the data files
+    count = 0
     with open(os.path.join('binarized_mnist', 'binarized_mnist_train.amat'), 'r') as fp:
         x_train = fp.readlines()
         x_train = np.array([[int(i) for i in line.split()] for line in x_train])
+        print('length of train is ',x_train.shape)
 
     with open(os.path.join('binarized_mnist', 'binarized_mnist_valid.amat'), 'r') as fp:
         x_valid = fp.readlines()

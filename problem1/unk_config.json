@@ -1,0 +1,6 @@
+{
+"input_size": 1,
+"hidden_size1": 32,
+"hidden_size2": 32,
+"hidden_size3": 32
+}
