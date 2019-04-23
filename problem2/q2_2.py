@@ -26,6 +26,7 @@ if __name__ == '__main__':
 
     # Load trained VAE model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device ='cpu'
     vae = VAE(batch_size, device=device, model_path='vae.pt')
     # Evaluate valid and test sets on ELBO loss
 
@@ -41,6 +42,7 @@ if __name__ == '__main__':
     loglike_valid = vae.eval_log_likelihood(valid_loader, device, batch_size, loss_fn=elbo_loss)
     print('loglike value imp sampling is ',sum(loglike_valid)/len(loglike_valid))
     log_eval('loglikelihood', 'valid', loglike_valid)
+
 
     loglike_test = vae.eval_log_likelihood(test_loader, device, batch_size, loss_fn=elbo_loss)
     print('loglike value imp sampling is ',sum(loglike_test)/len(loglike_test))

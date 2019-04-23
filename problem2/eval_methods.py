@@ -29,13 +29,16 @@ def log_likelihood_estimate(model, loader, device, batch_size):
     '''
     Estimates the log likelihood by importance sampling.
     '''
-    k = 200
+    k = 100
     k_loss = []
+    p_=[]
+    q_=[]
+    lo_=[]
     model.eval()
     # per batch
-
     for i, x in enumerate(loader):
         # per xi
+        lo = torch.empty(k)
         for j in range(len(x[0])):
             xi = x[0][j]
             # duplicate k times to avoid loop
@@ -57,7 +60,6 @@ def log_likelihood_estimate(model, loader, device, batch_size):
             stdev_ = stdev_.cpu().detach()
             q_gauss = dists.Normal(mu_, stdev_)
             q_samp = q_gauss.sample_n(k)
-
             # generate and sample p(zik)
             mu_0 = torch.zeros(100)
             sig_1 = torch.ones(100)
@@ -66,22 +68,22 @@ def log_likelihood_estimate(model, loader, device, batch_size):
             # generate log prob
             q = q_gauss.log_prob(q_samp)
             p = p_gauss.log_prob(q_samp)
-            q = q.to(device)
-            p = p.to(device)
+            q = q.sum(dim=1)
+            p = p.sum(dim=1)
 
-            # calc loss
+            # calc recon loss
             recon_loss = nn.BCELoss(reduction='sum')
-            lo = recon_loss(output.float(), xi_m.float())
-            loss = lo/k + torch.exp(p) - torch.exp(q)
-            # print('lo is',lo)
-            # print('DKL is', DKL)
-            k_loss.append(logSumExp(loss))
+            for h in range(k):
+                lo[h] = recon_loss(output[h].float(), xi_m[h].float())
+            # -1 due to negative loss
+            loss = -1*lo.detach() + p - q
+            loss = loss.cpu().detach().numpy()
+            k_loss.append(logSumExp(loss) - np.log(k))
     return k_loss
 
 
 def logSumExp(input):
-    inp = input.cpu().detach().numpy()
-    max = np.max(inp)
-    n = inp - max
+    max = np.max(input)
+    n = input - max
     exp = np.exp(n).sum()
     return max + np.log(exp)
