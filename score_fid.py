@@ -105,6 +105,7 @@ def calculate_fid_score(sample_feature_iterator,
     return fid
 
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Score a directory of images with the FID score.')
