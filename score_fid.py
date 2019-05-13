@@ -3,10 +3,12 @@ import os
 import torchvision
 import torchvision.transforms as transforms
 import torch
+import numpy as np
+import scipy.linalg as sl
 import classify_svhn
 from classify_svhn import Classifier
 
-SVHN_PATH = "svhn"
+SVHN_PATH = "SVHN"
 PROCESS_BATCH_SIZE = 32
 
 
@@ -73,9 +75,34 @@ def extract_features(classifier, data_loader):
 def calculate_fid_score(sample_feature_iterator,
                         testset_feature_iterator):
     """
-    estimate mu and sigma of samples and test and calculate d2
+    To be implemented by you!
     """
+    s_items = []
+    for s_item in sample_feature_iterator:
+        s_items.append(s_item)
+    s_items = np.array(s_items)
+    mu_s = np.mean(s_items, axis=0)
+    sigma_s = np.cov(s_items, rowvar=False)
+    # print('mu_s:', mu_s)
+    # print('sigma_s:', sigma_s)
 
+    t_items = []
+    for t_item in testset_feature_iterator:
+        t_items.append(t_item)
+    t_items = np.array(t_items)
+    mu_t = np.mean(t_items, axis=0)
+    sigma_t = np.cov(t_items, rowvar=False)
+
+    # Get mu norm term
+    mu_diff = mu_s - mu_t
+    norm = mu_diff.dot(mu_diff)
+
+    # Get trace term
+    sig_sum = sigma_s + sigma_t - (2 * sl.sqrtm(np.matmul(sigma_s, sigma_t)))
+    trace = np.trace(sig_sum)
+
+    fid = norm + trace
+    return fid
 
 
 if __name__ == "__main__":
@@ -97,6 +124,7 @@ if __name__ == "__main__":
     if quit:
         exit()
     print("Test")
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     classifier = torch.load(args.model, map_location='cpu')
     classifier.eval()
 
