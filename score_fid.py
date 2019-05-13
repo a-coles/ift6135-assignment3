@@ -85,6 +85,7 @@ def calculate_fid_score(sample_feature_iterator,
     sigma_s = np.cov(s_items, rowvar=False)
     # print('mu_s:', mu_s)
     # print('sigma_s:', sigma_s)
+    
 
     t_items = []
     for t_item in testset_feature_iterator:
